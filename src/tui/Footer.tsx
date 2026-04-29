@@ -1,25 +1,34 @@
 import { Box, Text } from "ink";
 import type { SyncStatus } from "../types/index";
+import { statusColor, statusGlyph, statusLabel } from "./theme";
 
-const statusColor: Record<SyncStatus, "green" | "red" | "yellow"> = {
-  "in-sync": "green",
-  drifted: "red",
-  unsynced: "yellow",
-};
-
-const statusGlyph: Record<SyncStatus, string> = {
-  "in-sync": "✓",
-  drifted: "!",
-  unsynced: "~",
-};
-
-export function Footer({ status }: { status: SyncStatus }) {
+export function Footer({
+  status,
+  issues,
+  width,
+}: {
+  status: SyncStatus;
+  issues: number;
+  width: number;
+}) {
+  const left = `${statusGlyph[status]} ${statusLabel[status]}   ·   ${issues} ${
+    issues === 1 ? "issue" : "issues"
+  }`;
+  const right = "↑↓ navigate    1 2 3 tabs    q quit";
+  const gap = Math.max(2, width - left.length - right.length);
   return (
-    <Box paddingX={1}>
-      <Text color={statusColor[status]} bold>
-        {statusGlyph[status]} {status}
+    <Box>
+      <Text>
+        <Text color={statusColor[status]} bold>
+          {statusGlyph[status]} {statusLabel[status]}
+        </Text>
+        <Text dimColor>{"   ·   "}</Text>
+        <Text dimColor>
+          {issues} {issues === 1 ? "issue" : "issues"}
+        </Text>
+        <Text>{" ".repeat(gap)}</Text>
+        <Text dimColor>{right}</Text>
       </Text>
-      <Text dimColor>{"   "}↑↓ select · 1/2/3 tabs · q quit</Text>
     </Box>
   );
 }

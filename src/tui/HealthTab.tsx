@@ -1,14 +1,12 @@
 import { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
-import type { DoctorState, Severity } from "../types/index";
+import type { DoctorState, HealthIssue } from "../types/index";
+import { SectionHeader } from "./SectionHeader";
+import { accent, sevColor, sevOrder, sevSection, truncate } from "./theme";
 
-const sevOrder: Severity[] = ["error", "warning", "suggestion"];
-
-const sevColor: Record<Severity, "red" | "yellow" | "blue"> = {
-  error: "red",
-  warning: "yellow",
-  suggestion: "blue",
-};
+const SPINE_W = 2;
+const DOT_W = 3;
+const RULEID_W = 32;
 
 export function HealthTab({ state }: { state: DoctorState }) {
   const sorted = useMemo(
@@ -22,38 +20,79 @@ export function HealthTab({ state }: { state: DoctorState }) {
 
   useInput((_input, key) => {
     if (key.upArrow) setIdx((i) => Math.max(0, i - 1));
-    else if (key.downArrow) setIdx((i) => Math.min(sorted.length - 1, i + 1));
+    else if (key.downArrow)
+      setIdx((i) => Math.min(sorted.length - 1, i + 1));
   });
-
-  const selected = sorted[idx];
 
   return (
     <Box flexDirection="column">
-      <Box flexDirection="column" marginBottom={1}>
-        {sorted.map((issue, i) => {
-          const sel = i === idx;
-          return (
-            <Box key={issue.id}>
-              <Text color={sel ? "cyan" : undefined} bold={sel}>
-                {sel ? "▸ " : "  "}
-              </Text>
-              <Text color={sevColor[issue.severity]}>
-                [{issue.severity.padEnd(10)}]
-              </Text>
-              <Text> {issue.message}</Text>
-            </Box>
-          );
-        })}
+      {sevOrder.map((sev) => {
+        const items = sorted
+          .map((issue, i) => ({ issue, i }))
+          .filter(({ issue }) => issue.severity === sev);
+        if (items.length === 0) return null;
+        return (
+          <Box key={sev} flexDirection="column" marginBottom={1}>
+            <SectionHeader title={sevSection[sev]} count={items.length} />
+            <Box height={1} />
+            {items.map(({ issue, i }) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                selected={idx === i}
+              />
+            ))}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+function IssueRow({
+  issue,
+  selected,
+}: {
+  issue: HealthIssue;
+  selected: boolean;
+}) {
+  const messageMax = 40;
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <Text>
+          <Text color={accent}>{selected ? "▌ " : "  "}</Text>
+          <Text color={sevColor[issue.severity]}>● </Text>
+          <Text bold={selected}>
+            {truncate(issue.ruleId, RULEID_W - 2).padEnd(RULEID_W)}
+          </Text>
+          <Text dimColor>{truncate(issue.message, messageMax)}</Text>
+        </Text>
       </Box>
       {selected && (
-        <Box flexDirection="column" borderStyle="single" paddingX={1}>
-          <Text bold>{selected.ruleId}</Text>
-          <Text>
-            file: {selected.file}
-            {selected.line !== undefined ? `:${selected.line}` : ""}
-          </Text>
-          <Text>category: {selected.category}</Text>
-          <Text>fix: {selected.fixHint}</Text>
+        <Box
+          flexDirection="column"
+          marginLeft={SPINE_W + DOT_W}
+          marginTop={1}
+          marginBottom={1}
+        >
+          <Box>
+            <Text dimColor bold>
+              {issue.category.toUpperCase()}
+            </Text>
+            <Text dimColor>{"  ·  "}</Text>
+            <Text dimColor>
+              {issue.file}
+              {issue.line !== undefined ? `:${issue.line}` : ""}
+            </Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text>{issue.message}</Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text color={accent}>{"→ "}</Text>
+            <Text>{issue.fixHint}</Text>
+          </Box>
         </Box>
       )}
     </Box>

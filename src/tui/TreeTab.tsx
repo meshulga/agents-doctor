@@ -1,62 +1,109 @@
 import { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { DoctorState } from "../types/index";
+import { SectionHeader } from "./SectionHeader";
+import { accent, scopeLabel, truncate } from "./theme";
 
-type TreeNode = {
-  kind: "rule" | "skill" | "command" | "mcp" | "override";
-  label: string;
-  detail: string;
-};
+const NAME_W = 32;
 
-function buildNodes(state: DoctorState): TreeNode[] {
+type ItemKind = "rule" | "skill" | "command" | "mcp" | "override";
+
+type Item = { label: string; detail: string };
+
+type Section = { kind: ItemKind; title: string; items: Item[] };
+
+function buildSections(state: DoctorState): Section[] {
   return [
-    ...state.rules.map<TreeNode>((r) => ({
+    {
       kind: "rule",
-      label: r.name,
-      detail: `agents: ${r.frontmatter.agents.join(",")}`,
-    })),
-    ...state.skills.map<TreeNode>((s) => ({
+      title: "RULES",
+      items: state.rules.map((r) => ({
+        label: r.name,
+        detail: [
+          scopeLabel(r.frontmatter.agents),
+          r.frontmatter.priority ?? "normal",
+          r.frontmatter.globs && r.frontmatter.globs.length > 0
+            ? `${r.frontmatter.globs.length} globs`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("  ·  "),
+      })),
+    },
+    {
       kind: "skill",
-      label: s.name,
-      detail: `agents: ${s.agents.join(",")}`,
-    })),
-    ...state.commands.map<TreeNode>((c) => ({
+      title: "SKILLS",
+      items: state.skills.map((s) => ({
+        label: s.name,
+        detail: `${scopeLabel(s.agents)}  ·  ${s.description}`,
+      })),
+    },
+    {
       kind: "command",
-      label: c.name,
-      detail: `agents: ${c.agents.join(",")}`,
-    })),
-    ...state.mcpServers.map<TreeNode>((m) => ({
+      title: "COMMANDS",
+      items: state.commands.map((c) => ({
+        label: c.name,
+        detail: scopeLabel(c.agents),
+      })),
+    },
+    {
       kind: "mcp",
-      label: m.name,
-      detail: `agents: ${m.agents.join(",")}`,
-    })),
-    ...state.overrides.map<TreeNode>((o) => ({
+      title: "MCP SERVERS",
+      items: state.mcpServers.map((m) => ({
+        label: m.name,
+        detail: scopeLabel(m.agents),
+      })),
+    },
+    {
       kind: "override",
-      label: o.source,
-      detail: `agent: ${o.agent}`,
-    })),
+      title: "OVERRIDES",
+      items: state.overrides.map((o) => ({
+        label: o.source,
+        detail: o.agent,
+      })),
+    },
   ];
 }
 
 export function TreeTab({ state }: { state: DoctorState }) {
-  const nodes = useMemo(() => buildNodes(state), [state]);
+  const sections = useMemo(() => buildSections(state), [state]);
+  const totalItems = useMemo(
+    () => sections.reduce((acc, s) => acc + s.items.length, 0),
+    [sections],
+  );
   const [idx, setIdx] = useState(0);
 
   useInput((_input, key) => {
     if (key.upArrow) setIdx((i) => Math.max(0, i - 1));
-    else if (key.downArrow) setIdx((i) => Math.min(nodes.length - 1, i + 1));
+    else if (key.downArrow) setIdx((i) => Math.min(totalItems - 1, i + 1));
   });
+
+  let cursor = 0;
 
   return (
     <Box flexDirection="column">
-      {nodes.map((n, i) => {
-        const sel = i === idx;
+      {sections.map((section) => {
+        const sectionStart = cursor;
+        cursor += section.items.length;
+        if (section.items.length === 0) return null;
         return (
-          <Box key={`${n.kind}-${i}`}>
-            <Text color={sel ? "cyan" : undefined} bold={sel}>
-              {sel ? "▸ " : "  "}[{n.kind.padEnd(8)}] {n.label}
-              <Text dimColor>{"  "}{n.detail}</Text>
-            </Text>
+          <Box key={section.kind} flexDirection="column" marginBottom={1}>
+            <SectionHeader title={section.title} count={section.items.length} />
+            <Box height={1} />
+            {section.items.map((item, i) => {
+              const sel = idx === sectionStart + i;
+              return (
+                <Box key={`${section.kind}-${i}`}>
+                  <Text>
+                    <Text color={accent}>{sel ? "▌ " : "  "}</Text>
+                    <Text bold={sel}>
+                      {truncate(item.label, NAME_W - 2).padEnd(NAME_W)}
+                    </Text>
+                    <Text dimColor>{item.detail}</Text>
+                  </Text>
+                </Box>
+              );
+            })}
           </Box>
         );
       })}
