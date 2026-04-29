@@ -1,0 +1,33 @@
+{
+  "name": "agents-doctor",
+  "version": "0.0.1",
+  "description": "Single source of truth and drift check for AI coding agent configs.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agents-doctor": "bin/agents-doctor.js"
+  },
+  "files": ["bin", "dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "ignore": "^5.3.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}
