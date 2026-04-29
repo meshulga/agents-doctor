@@ -1,33 +1,20 @@
 import { Box, Text } from "ink";
-import type { SyncStatus } from "../types/index";
-import { statusColor, statusGlyph, statusLabel } from "./theme";
 
-export function Footer({
-  status,
-  issues,
-  width,
-}: {
-  status: SyncStatus;
-  issues: number;
-  width: number;
-}) {
-  const left = `${statusGlyph[status]} ${statusLabel[status]}   ·   ${issues} ${
-    issues === 1 ? "issue" : "issues"
-  }`;
-  const right = "↑↓ navigate    1 2 3 tabs    q quit";
-  const gap = Math.max(2, width - left.length - right.length);
+type Mode = "list" | "detail";
+
+const HINTS: Record<Mode, string> = {
+  list: "↑↓ navigate    enter detail    q quit",
+  detail: "esc / ← / h back    q quit",
+};
+
+export function Footer({ mode, width }: { mode: Mode; width: number }) {
+  const hint = HINTS[mode];
+  const pad = Math.max(0, width - hint.length);
   return (
     <Box>
-      <Text>
-        <Text color={statusColor[status]} bold>
-          {statusGlyph[status]} {statusLabel[status]}
-        </Text>
-        <Text dimColor>{"   ·   "}</Text>
-        <Text dimColor>
-          {issues} {issues === 1 ? "issue" : "issues"}
-        </Text>
-        <Text>{" ".repeat(gap)}</Text>
-        <Text dimColor>{right}</Text>
+      <Text dimColor>
+        {" ".repeat(pad)}
+        {hint}
       </Text>
     </Box>
   );
