@@ -1,282 +1,259 @@
 # agents-doctor — Product Requirements Document
 
-**Status:** Draft v0.2
+**Status:** Draft v0.3
 **Owner:** TBD
 **Last updated:** 2026-04-29
+**License:** MIT
 
 -----
 
 ## 1. Summary
 
-`agents-doctor` is an open-source CLI + TUI tool that gives teams using multiple AI coding agents (Claude Code, Codex, …) one place to author, validate, and synchronize the rules, skills, MCP servers, and slash commands those agents read.
+`agents-doctor` is an open-source CLI that gives teams using multiple AI coding agents (Claude Code, Codex) one place to author and synchronize the rules, skills, and slash commands those agents read.
 
-It does three things no existing tool does together:
+It does three things:
 
-1. Compiles a single source of truth into every agent’s native config files.
-1. Runs mechanical health checks against those configs (drift, anti-patterns).
-1. Hands judgment-call fixes back to the user’s own AI agent through an installed slash command, closing the loop without the tool having to “understand” what’s wrong.
+1. Compiles a single source of truth into every agent's native config files (`sync`).
+2. Mechanically verifies that the agent files on disk match what the source of truth would produce, and flags untracked extras (`check`).
+3. Bootstraps the source of truth from a project that already has agent config files (`init`).
 
 Distributed via `npm`, written in TypeScript. v1 targets Claude Code and Codex.
 
+v1 is the foundation. The headline feature for v2 is an **AI-fix loop**: a slash command (`/doctor-fix`) that the user runs from inside their AI agent to resolve judgment-call issues — vague rules, conflicts, missing skill descriptions — that mechanical tools cannot fix. Sync and check exist to make that loop possible; they are infrastructure, not the product.
+
 ## 2. Problem
 
-Every AI coding agent reads its own config file. Claude Code reads `CLAUDE.md`. Codex reads `AGENTS.md`. Cursor reads `.cursor/rules/*.mdc`. Copilot, Windsurf, Gemini CLI, Cline — each has its own format and discovery rules.
+Every AI coding agent reads its own config file. Claude Code reads `CLAUDE.md`. Codex reads `AGENTS.md`. Each has its own discovery rules and conventions.
 
-Teams using more than one agent face four compounding problems:
+Teams using more than one agent face two problems:
 
-- **Manual duplication.** The same rule has to be written in 2–5 files, in slightly different shapes, every time it changes.
-- **Silent drift.** “Don’t commit to main” in one file becomes “avoid direct pushes to main” in another. Same intent, different wording, no warning when they disagree.
-- **No quality bar.** There is no linter for these files. Vague rules (“write good code”), conflicts between rules, dead `@references`, or rules that an actual code linter should be enforcing instead, all ship to production unchecked.
-- **No coordinated update path.** When best practices for AI configs evolve (e.g., progressive disclosure, instruction-count budgets, new MCP standards), there is no mechanism to notice or adopt the change across an existing project.
+- **Manual duplication.** The same rule has to be written in two files, in slightly different shapes, every time it changes.
+- **Silent drift.** A rule edited directly in `CLAUDE.md` quietly diverges from `AGENTS.md`. No warning when they disagree.
 
-Existing tools solve at most two of these. `rulesync` and `Ruler` solve compilation. `agnix` and `cclint` solve linting. None tightly integrate the two with a fix loop that uses the agent already in the developer’s workflow.
+Existing tools solve compilation (`rulesync`, `Ruler`) or linting (`agnix`, `cclint`), but none combine a single source of truth with mechanical verification across multiple agents in a single tool.
 
 ## 3. Goals and non-goals
 
 ### Goals (v1)
 
-- Single source of truth for rules, skills, MCP servers, and slash commands across Claude Code and Codex.
-- Mechanical health checks for drift and anti-patterns, with severity levels and clear diagnostics.
-- TUI with three tabs: coverage matrix, tree browser, health dashboard.
-- AI-agent fix loop via an installed slash command (`/doctor-fix`).
-- Wizard-driven onboarding for projects that already have AI config files, including parsing existing files into atomic rules with conflict detection.
-- CI mode that fails builds on drift or critical issues.
+- Single source of truth for rules, skills, and slash commands across Claude Code and Codex.
+- One-shot compilation of source of truth → agent config files (`sync`).
+- Mechanical drift detection: agent files vs. recompiled source of truth, plus untracked extras (`check`).
+- Brownfield onboarding: detect existing agent files anywhere in the repo and seed the SOT from them (`init`).
+- Support for nested `CLAUDE.md` / `AGENTS.md` at arbitrary paths via per-rule `path:` frontmatter.
 
 ### Non-goals (v1)
 
-- Replacing or competing with code linters (ESLint, Prettier, Biome). agents-doctor flags rules that *should be* a linter’s job; it does not do that job.
-- Editing or formatting the codebase itself. Only AI config files are managed.
-- Supporting agents beyond Claude Code and Codex. Cursor, Windsurf, Gemini CLI, GitHub Copilot, Cline, and others are post-v1.
-- Best-practices registry, freshness checks, and `pull` from external sources. v1 is local lint only.
-- Semantic drift detection (“same intent, different wording”). Drift detection is mechanical only — file content vs. last sync.
-- Backport flow. Direct edits to generated files are flagged but not automatically routed back to source files.
-- Web dashboard, IDE plugin, or LSP. CLI + TUI only in v1.
+- No MCP server management.
+- No override / escape-hatch files.
+- No anti-pattern lint (vague rules, dead `@references`, etc.). Drift only.
+- No semantic drift detection. Drift is mechanical content comparison only.
+- No TUI, no AI-fix loop, no slash command installation by the tool itself.
+- No `diff`, `revert`, profiles, or `.bak` files. `git` is the safety net.
+- No agents beyond Claude Code and Codex. Cursor, Windsurf, Gemini CLI, Copilot, Cline, Aider are post-v1.
+- No web UI, IDE plugin, LSP, or hosted analytics.
+- No automated backport of direct edits to generated files. Direct edits are flagged; the user resolves them by hand.
 
 ## 4. Target users
 
-- **Solo developer, multi-agent.** Uses Claude Code for big refactors and Codex for daily coding. Tired of keeping two files in sync.
-- **Tech lead, small team (3–15 engineers).** Wants a shared, versioned set of AI rules so the whole team gets consistent agent behavior. Cares about CI enforcement.
-- **Open-source maintainer.** Wants contributors to get the same agent guidance regardless of which tool they use, without having to maintain N config files.
-- **Platform / DX team at a larger company.** Wants to publish a curated set of org-wide rules that internal projects can adopt and extend.
+- **Solo developer, multi-agent.** Uses Claude Code and Codex, tired of keeping two files in sync.
+- **Tech lead, small team (3–15 engineers).** Wants a shared, versioned set of AI rules. Cares about CI enforcement (`check` exits non-zero).
+- **Open-source maintainer.** Wants contributors to get consistent agent guidance without maintaining N config files.
 
-Not a target: developers who use exactly one AI agent. They have no sync problem; the linter alone may not justify adoption.
+Not a target: developers who use exactly one AI agent. They have no sync problem.
 
 ## 5. Competitive landscape
 
-|Tool             |Sync   |Lint   |AI-fix loop|TUI    |Multi-agent|
-|-----------------|-------|-------|-----------|-------|-----------|
-|rulesync         |Yes    |No     |No         |No     |20+        |
-|Ruler            |Yes    |No     |No         |No     |Many       |
-|AI Rules Sync    |Yes    |No     |No         |No     |11+        |
-|agnix            |No     |Yes    |No         |No     |12+        |
-|AgentLinter      |No     |Yes    |No         |No     |Several    |
-|cclint           |No     |Yes    |No         |No     |Claude only|
-|**agents-doctor**|**Yes**|**Yes**|**Yes**    |**Yes**|**2 in v1**|
+|Tool             |Sync   |Drift check|Multi-agent|
+|-----------------|-------|-----------|-----------|
+|rulesync         |Yes    |No         |20+        |
+|Ruler            |Yes    |No         |Many       |
+|agnix            |No     |Lint only  |12+        |
+|cclint           |No     |Lint only  |Claude only|
+|**agents-doctor**|**Yes**|**Yes**    |**2 in v1**|
 
-The matrix is the wedge. Each cell is filled by someone; no one fills the row.
+Sync + drift check together is the wedge. v1 stays narrowly focused on two agents.
 
-## 6. Differentiation
+## 6. Core concepts
 
-Two mechanics make agents-doctor distinct in v1:
+- **Source of truth (SOT).** A `.agents-doctor/` directory containing `config.yaml`, modular markdown rules, skill folders, and slash commands. The only thing humans hand-edit.
+- **Generated files.** Every agent-specific file (`CLAUDE.md`, `AGENTS.md`, `.claude/skills/*`, `.claude/commands/*`) is regenerated from the SOT. Tracked in git but treated as derived.
+- **Drift.** A generated file's on-disk content does not match what compiling the SOT would produce, OR an agent directory contains a file that has no SOT origin (extra).
 
-1. **Cross-agent drift detection.** Existing linters check files in isolation. agents-doctor compares source-of-truth content against rendered outputs and flags rules present in one agent’s config and missing from another’s, plus generated files that have been edited directly. v1 detection is mechanical (content hash + structural diff); semantic equivalence checks are deferred to a later release.
-1. **AI-fix loop, not auto-fix.** When the linter finds an issue that needs judgment (rewriting a vague rule, resolving a conflict between two rules), it does not try to fix it. It writes the issue to a structured todo file and provides a slash command the user can run from inside their AI agent. The agent has full codebase context, so it can make better decisions than a static tool.
+## 7. User flows
 
-## 7. Core concepts
+### 7.1 Init (brownfield onboarding)
 
-- **Source of truth.** A `.agents-doctor/` directory containing modular markdown for rules, skill folders, MCP server definitions, and slash commands. The only thing humans hand-edit.
-- **Generated files.** Every agent-specific file (`CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `.claude/commands/*.md`, etc.) is regenerated from the source of truth. Tracked in git but treated as derived.
-- **Override.** A free-form escape hatch for cases that don’t model cleanly as scoped rules — e.g., an entire section of guidance specific to one agent.
-- **Lock file.** Records content hashes for each generated file plus the compiler versions used to produce them. Used for mechanical drift detection and reproducible installs.
+1. User runs `agents-doctor init` in a repo that already has `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, and/or `.claude/commands/`.
+2. If `.agents-doctor/` already exists, the command aborts with a non-zero exit and a clear error. (No `--force` in v1.)
+3. Tool walks the project tree, respecting `.gitignore`, and discovers every `CLAUDE.md` and `AGENTS.md` (root and nested), plus `.claude/skills/` and `.claude/commands/` at the project root.
+4. Tool prompts the user for a **priority agent** (`claude` or `codex`). The priority agent wins all conflicts.
+5. For each `(path, CLAUDE.md, AGENTS.md)` triple discovered:
+    - Both files are split into chunks by top-level markdown headings (`## …`). Pre-heading content is treated as a leading chunk.
+    - Chunks identical across both files are emitted as a single rule with `agents: ["*"]`.
+    - Chunks present in only one file are emitted as a rule with `agents: [<that-agent>]`.
+    - Chunks present in both but with different content are resolved in favor of the priority agent. The losing chunk is dropped.
+    - All resulting rules carry `path:` matching the directory they were discovered in.
+6. Skills (each `.claude/skills/<name>/`) and commands (each `.claude/commands/<name>.md`) are copied into `.agents-doctor/skills/` and `.agents-doctor/commands/` verbatim. (These have no Codex equivalent, so no conflict resolution applies.)
+7. Tool writes `.agents-doctor/config.yaml` with both agents enabled.
+8. Tool runs `sync` automatically. The existing on-disk agent files are overwritten with the compiled output. The user reviews the resulting `git diff` and commits.
 
-## 8. User flows
+The existing agent files are not deleted or backed up by `init` itself; sync's overwrite is the next step, and git is the safety net.
 
-### 8.1 First-time install in an existing project
+### 7.2 Sync
 
-1. User runs `npx agents-doctor init` in a repo that already has `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.claude/commands/`, `.mcp.json`.
-1. Tool detects all existing config and reports counts.
-1. Tool parses each file into atomic rules and classifies them as identical, similar (different wording), conflicting, or single-agent.
-1. Conflict review TUI: side-by-side picker for each conflict and each “similar” pair, with sensible defaults.
-1. Categorization proposal: rules clustered into suggested files (`general.md`, `style.md`, `testing.md`, …) with the option to rename, merge, or move.
-1. Skills, commands, and MCP imported with one decision point each (e.g., flag commands that don’t translate cleanly to all targets).
-1. Preview screen lists every file that will be created, modified (with `.bak` saved), or deleted. User confirms.
-1. First sync runs automatically. First check runs automatically. The slash command is installed in the appropriate agent directories.
+1. User edits files in `.agents-doctor/`.
+2. User runs `agents-doctor sync`.
+3. Tool compiles the SOT and writes every agent file to disk, overwriting existing content. Each generated file starts with a header comment marking it as generated.
+4. User reviews `git diff` and commits.
 
-Two confirmations plus the conflict picker. Should complete in under two minutes for a typical project.
+### 7.3 Check
 
-### 8.2 Daily use: check → AI fix loop
+1. User runs `agents-doctor check` (locally or in CI).
+2. Tool compiles the SOT in memory and compares against on-disk agent files.
+3. For each tracked agent path: missing, content mismatch, or matched.
+4. For each agent directory (`.claude/skills/`, `.claude/commands/`): file present on disk with no SOT origin → flagged as extra.
+5. Any issue → exit non-zero with a list of problems and the affected paths. Clean → exit 0.
 
-1. User runs `agents-doctor check`. Issues classified into three buckets:
-- **Mechanical** (missing frontmatter, dead links, formatting, drift since last sync). Fixed silently where safe; flagged otherwise.
-- **Decisive** (rule conflict, ambiguous targeting). Written to `.agents-doctor/.todo.md` with options.
-- **Generative** (vague rule, missing skill description). Flagged for the agent.
-1. User opens their AI agent and runs `/doctor-fix`.
-1. The slash command tells the agent: read `.agents-doctor/.todo.md`, edit the source-of-truth files, run `agents-doctor sync && agents-doctor check`, report what’s left.
-1. User reviews the diff and commits.
+### 7.4 Direct edits to generated files
 
-### 8.3 Direct edits to generated files
+Direct edits are detected by `check` as drift. The user must either re-run `sync` (discarding the direct edit) or port the change into the SOT and re-sync. The tool does not automatically route the edit back to source.
 
-When `agents-doctor check` detects that a generated file (e.g., `CLAUDE.md`) has been edited directly:
+## 8. Functional requirements
 
-1. The drift is flagged in the health tab as an error.
-1. User must either re-sync (discarding the direct edit) or manually port the change into a source-of-truth file before re-syncing.
-1. The tool does not automatically route the edit back to source. An automated backport flow is a v1.x consideration.
-
-### 8.4 CI / team
-
-- `agents-doctor check --ci` exits non-zero on drift, conflicts, or any issue at or above a configured severity threshold.
-- `agents-doctor sync --check` (no writes) verifies that committed generated files match what the source of truth would produce. Used to enforce that no one bypasses the tool.
-- The lock file is committed.
-
-## 9. Functional requirements
-
-### 9.1 Source-of-truth structure
+### 8.1 Source-of-truth structure
 
 ```
 .agents-doctor/
-├── config.yaml          # target agents, profile
-├── rules/               # modular .md files w/ frontmatter
-│   ├── general.md       #   (frontmatter: agents, globs, priority)
+├── config.yaml           # agents: [claude, codex]
+├── rules/                # flat directory of .md files w/ frontmatter
+│   ├── general.md        #   path defaults to "."
 │   ├── style.md
-│   └── testing.md
-├── skills/              # SKILL.md format (Claude-native, portable)
+│   └── todo-components.md #  path: src/apps/todo/components
+├── skills/               # SKILL.md format (Claude only)
 │   └── refactor-py/
 │       └── SKILL.md
-├── commands/            # slash commands as .md
-│   └── review.md
-├── mcp/
-│   └── servers.yaml     # one MCP definition, fan out to each agent
-└── overrides/           # escape hatch for agent-specific quirks
-    ├── claude.md
-    └── codex.md
+└── commands/             # slash commands as .md (Claude only)
+    └── review.md
 ```
 
-### 9.2 Per-agent scoping
+`config.yaml` for v1 contains a single key:
 
-Frontmatter on each rule file controls how it is rendered:
+```yaml
+agents: [claude, codex]
+```
 
-- `agents`: list of target agents (`claude`, `codex`), or `["*"]` for all (default).
-- `globs`: file-path patterns the rule applies to. Surfaced as a hint in CLAUDE.md and AGENTS.md.
-- `priority`: high / normal / low. Used by health checks to flag low-priority rules that bloat the context window.
-- `tags`: free-form labels for filtering in the TUI.
+### 8.2 Rule frontmatter
 
-Same intent across agents → write once with `agents: ["*"]`. Different rule per agent → write multiple files with explicit `agents:` lists. Drift detector treats those as intentional, not a bug. Identical wording with no scoping is the default.
+Every file in `rules/` carries YAML frontmatter:
 
-### 9.3 Compilation / sync
+- `agents`: list of target agents (`claude`, `codex`), or `["*"]` for all. Default `["*"]`.
+- `globs`: file-path patterns the rule applies to. Surfaced as a hint inside the compiled output. Optional.
+- `priority`: `high` / `normal` / `low`. Used as an ordering hint inside the compiled output (high first). Default `normal`.
+- `path`: project-relative directory where this rule's compiled output should be placed. Default `.` (project root). Multiple rules with the same `path` are merged into a single `CLAUDE.md` / `AGENTS.md` at that location.
 
-- One canonical input → many outputs. Each agent’s compiler is a pluggable module.
-- Generated files always include a header comment indicating they were produced by agents-doctor and should not be edited directly.
-- Compilers handle agent-specific quirks (Claude Code’s `@import` syntax, AGENTS.md’s section conventions) without leaking those quirks back into the source.
-- A `.bak` of any modified file is kept on every sync; can be restored via `agents-doctor revert`.
+Example:
 
-### 9.4 Health checks
+```markdown
+---
+agents: ["*"]
+globs: ["src/apps/todo/components/**"]
+priority: normal
+path: src/apps/todo/components
+---
 
-Two categories in v1, both on by default, individually toggleable:
+# Component conventions
 
-- **Drift (mechanical).** Compares generated file content hashes against the lock file. Flags edits made directly to generated files since the last sync. Flags rules present in one agent’s compiled output and absent from another’s without explicit `agents:` scoping. Does **not** attempt semantic equivalence checks — that is post-v1.
-- **Anti-patterns.** Rule-level static analysis. Catches vague phrasing, contradictions detected by literal text overlap, dead `@references`, rules a real linter should handle, missing required frontmatter, instruction-count blowouts, and over-broad globs.
+…rule body…
+```
 
-Each issue carries a severity (`error`, `warning`, `suggestion`), a stable rule ID, a human-readable explanation, and a fix hint that says whether it is mechanical, decisive, or generative.
+### 8.3 Compilation (sync)
 
-### 9.5 TUI
+- Each agent has a pluggable compiler module.
+- **Rules → CLAUDE.md / AGENTS.md.** For each unique `path` value in scope for an agent, the compiler concatenates matching rules (ordered by `priority` then filename) and writes a single output file at `<path>/<AGENT_FILE>` (`CLAUDE.md` for Claude, `AGENTS.md` for Codex). Each rule's frontmatter is **stripped entirely** before concatenation; only the rule body reaches the compiled output. The compiled file starts with the literal header:
+  ```
+  <!-- Generated by agents-doctor; do not edit. Source: .agents-doctor/ -->
+  ```
+- **Skills (Claude only).** Each skill folder under `.agents-doctor/skills/<name>/` is copied **recursively, verbatim** to `.claude/skills/<name>/`. Helper scripts, references, and supporting files travel with the skill. The skill's `SKILL.md` frontmatter passes through a whitelist (`name`, `description`) plus an injected `generated_by: agents-doctor` field; non-whitelisted keys are dropped. Other files in the skill folder are copied byte-for-byte.
+- **Commands (Claude only).** Each `.agents-doctor/commands/<name>.md` is copied to `.claude/commands/<name>.md`. Frontmatter passes through a whitelist (`description`, `allowed-tools`, `argument-hint`, `model`) plus the injected `generated_by` field; non-whitelisted keys are dropped.
+- **Line endings.** All compiled output is written with LF line endings regardless of host OS, so `check` does not flag spurious drift on mixed-OS teams.
+- **Overwrite.** Sync overwrites existing files unconditionally. No `.bak`. Git is the safety net.
 
-Three tabs, all keyboard-navigable:
+### 8.4 Check
 
-- **Matrix.** Rules × agents grid. Cells indicate present / absent / drifted / overridden. Drill into any cell to see the rendered output.
-- **Tree.** Hierarchical browser of rules, skills, commands, MCP servers, and overrides. Search and filter by tag, agent, or text.
-- **Health.** Issues grouped by severity, then by category. Each issue is expandable to show the offending file, the explanation, and the fix hint.
+- Compiles the SOT in memory (no writes).
+- For each generated path the compiler would produce, compares the in-memory bytes against the on-disk bytes (LF-normalized, gen header included). Mismatches and missing files are reported.
+- **Walk scope.** Discovers nested `CLAUDE.md` and `AGENTS.md` at any depth by walking the project tree, respecting `.gitignore` and skipping a default heavy-path list (`.git`, `node_modules`, `dist`, `build`, `.next`, `.nuxt`, `target`, `vendor`). The same walk rules are used by `init`. `.claude/skills/` and `.claude/commands/` are checked at the project root only.
+- **Extras.** Any `CLAUDE.md` / `AGENTS.md` discovered on disk that has no corresponding SOT origin (no rule with that `path:`), or any file inside `.claude/skills/` or `.claude/commands/` not produced by sync, is reported as an extra.
+- **Per-agent scoping.** `agents: [claude]` is honored — a rule scoped to one agent is not flagged as missing from the other. Likewise, a directory containing only Claude-scoped rules will not be flagged for a missing `AGENTS.md`.
+- Any reported issue → process exits non-zero. Clean → exits 0.
 
-A persistent footer shows the current sync status (in sync / drifted / unsynced) and a hint for the next useful command.
+### 8.5 Init
 
-### 9.6 CLI surface
+- Aborts non-zero if `.agents-doctor/` exists.
+- Walks the project tree, honoring `.gitignore` and skipping common heavy paths (`.git/`, `node_modules/`, etc.) by default.
+- Discovers every `CLAUDE.md` and `AGENTS.md` at any depth, plus `.claude/skills/` and `.claude/commands/` at the project root.
+- Prompts interactively for a priority agent (`claude` | `codex`) used to resolve conflicts.
+- Splits each discovered `CLAUDE.md` / `AGENTS.md` into chunks by top-level headings; merges identical chunks under `agents: ["*"]`, scopes single-side chunks to the originating agent, and drops the loser of any conflicting chunk.
+- Writes the seeded SOT and runs `sync` immediately.
 
-|Command                     |Purpose                                          |
-|----------------------------|-------------------------------------------------|
-|`agents-doctor init`        |Wizard onboarding for new or existing projects   |
-|`agents-doctor sync`        |Regenerate all agent configs from source of truth|
-|`agents-doctor sync --check`|Verify generated files match source (no writes)  |
-|`agents-doctor check`       |Run health checks                                |
-|`agents-doctor check --ci`  |Health checks with non-zero exit on issues       |
-|`agents-doctor diff`        |Preview changes a sync would make                |
-|`agents-doctor revert`      |Restore from `.bak` files                        |
-|`agents-doctor tui`         |Launch the TUI                                   |
+### 8.6 CLI surface
 
-All commands respect a `--profile` flag for switching between configurations (e.g., `personal` vs. `work`).
+|Command               |Purpose                                                          |
+|----------------------|-----------------------------------------------------------------|
+|`agents-doctor init`  |Bootstrap `.agents-doctor/` from existing agent files.            |
+|`agents-doctor sync`  |Regenerate all agent configs from the source of truth.            |
+|`agents-doctor check` |Verify on-disk agent files match the source of truth.             |
 
-### 9.7 AI-fix loop
+No flags in v1. No `--ci`, `--profile`, `--force`, `--check`. CI integration is just `agents-doctor check` in a job step.
 
-One slash command, installed during `init` into each supported agent’s commands directory:
+## 9. Supported agents (v1)
 
-- `/doctor-fix` — Reads the todo file, edits source-of-truth files, runs sync and check, reports remaining issues.
-
-The command is deterministic at the agents-doctor level (the tool produces structured todo data); the agent provides the judgment. The user is always in the loop via the resulting git diff.
-
-### 9.8 Onboarding wizard
-
-Detection covers existing files known across the supported agents (Claude Code and Codex). Parsing breaks each known config file into atomic rules and classifies each:
-
-- Identical text across agents → merged into a single rule with `agents: ["*"]`.
-- Near-identical text (token-set similarity above a threshold) → flagged for user review with a side-by-side picker.
-- Conflicting rules (overlapping topic, different prescription) → flagged for user review.
-- Single-agent rules → preserved with explicit `agents:` scoping.
-
-The wizard never modifies a file without showing a preview and getting confirmation. `.bak` files are saved for everything modified during init. Aborting at any step leaves the project in its original state.
-
-## 10. Supported agents (v1)
-
-- **Claude Code** — full support: `CLAUDE.md`, `.claude/skills/`, `.claude/commands/`, `.mcp.json`.
-- **Codex CLI** — full support: `AGENTS.md`, MCP via `~/.codex/config.toml` references, slash command equivalents surfaced as documented sections.
+- **Claude Code** — full support: `CLAUDE.md` (root + nested), `.claude/skills/`, `.claude/commands/`.
+- **Codex CLI** — rules only: `AGENTS.md` (root + nested). Codex has no native skills or slash commands; SOT skills and commands are not compiled for Codex and not flagged as missing from it.
 
 Expansion roadmap (post-v1, in order of likely demand): Cursor, Windsurf, Gemini CLI, GitHub Copilot, Cline, Aider.
 
-## 11. Non-goals (v1, restated for clarity)
+## 10. Success metrics
 
-- No web UI, no IDE extension, no LSP server.
-- No automatic editing of source-of-truth files by agents-doctor itself. That responsibility lives with the user’s AI agent via the slash command.
-- No best-practices registry, no `pull` command, no freshness checks. v1 is local lint only.
-- No semantic drift detection. Drift is mechanical (hash + structural) only in v1.
-- No automated backport flow. Direct edits to generated files are flagged but not auto-routed.
-- No Cursor support in v1 (planned for v1.x).
-- No per-rule access control or signing in v1.
-- No hosted analytics or telemetry. The tool is fully local-first.
-
-## 12. Success metrics
-
-- **Activation:** % of installs that complete `init` and run a first `sync`.
+- **Activation:** % of installs that run `sync` at least once.
 - **Retention:** % of projects that run `check` or `sync` again within 30 days.
-- **Loop usage:** % of `check` runs followed by a `/doctor-fix` invocation within 24 hours.
-- **CI adoption:** % of projects that wire `check --ci` into their pipeline.
-- **Drift caught:** average drift issues per repo at install vs. after one month of use.
+- **CI adoption:** % of projects that wire `check` into their pipeline.
 
-## 13. Risks and mitigations
+## 11. Risks and mitigations
 
-|Risk                                                 |Mitigation                                                                                                                                                |
-|-----------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-|agnix or rulesync ships the same combined feature set|Move fast on the AI-fix loop and TUI, where they are weakest. Stay narrowly focused on two agents until the wedge is proven.                              |
-|Agent vendors change config formats                  |Pluggable compiler-per-agent architecture isolates churn to one module. Lock file records compiler versions.                                              |
-|Users distrust automatic edits to their config       |Every change is previewed, every modified file gets a `.bak`, every command has a `--check` / dry-run variant.                                            |
-|Slash command behaves inconsistently across agents   |Limit `/doctor-fix` to operations that work via plain file edits and shell. No agent-specific tool calls in the slash command body.                       |
-|Onboarding wizard misclassifies existing rules       |Every classification (identical / similar / conflicting) is user-reviewable with a side-by-side picker. Aborting init leaves the project untouched.       |
-|The “everyone makes a config sync tool” narrative    |Lead the README with the lint and fix-loop story. Position sync as table-stakes, not the value proposition.                                               |
+|Risk                                            |Mitigation                                                                                                       |
+|------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+|rulesync or Ruler ships drift detection         |Stay narrowly focused on the two-agent + drift wedge. Ship fast.                                                  |
+|Agent vendors change config formats             |Pluggable compiler-per-agent isolates churn to one module.                                                        |
+|Users distrust automatic edits to their config  |Every change is visible via `git diff`. The gen header marks files as derived.                                    |
+|Drift detection misses semantic divergence      |v1 is mechanical only by design. Document this clearly. Semantic checks are a v1.x consideration.                 |
 
-## 14. Milestones
+## 12. Milestones
 
-- **M0 — Spec frozen.** This document accepted, license confirmed.
-- **M1 — TS scaffold + Claude compiler.** Source-of-truth schema defined, Claude Code compiler working end-to-end, `sync` and `diff` commands operational.
-- **M2 — Codex compiler + onboarding wizard.** Codex compiler complete. `init` wizard handles existing projects with full atomic-rule parsing and conflict picker.
-- **M3 — Health checks.** Mechanical drift and anti-pattern checks shipped. Severity levels, stable rule IDs.
-- **M4 — TUI.** Matrix, tree, and health tabs.
-- **M5 — AI-fix loop.** `/doctor-fix` slash command installed and validated against both agents.
-- **M6 — CI mode.** `check --ci`, `sync --check`, GitHub Action template.
+- **M0 — Spec frozen.** This document accepted.
+- **M1 — TS scaffold + Claude compiler.** SOT schema defined, Claude compiler working end-to-end, `sync` operational for rules at root.
+- **M2 — Codex compiler.** `AGENTS.md` compilation, including nested paths.
+- **M3 — Skills + commands.** Claude skills and commands sync.
+- **M4 — Check.** Drift + extras detection. Non-zero exit on issues.
+- **M5 — Init.** Brownfield onboarding, including nested file walk and priority-agent conflict resolution.
 - **v1.0 — Public release.**
 
-## 15. Open questions
+## 13. Roadmap beyond v1
 
-- Should `agents-doctor` ship a compatibility layer that reads `rulesync` or `Ruler` source-of-truth directories, to ease migration?
-- Should the slash command be customizable per project, or is the canonical one enough?
-- How do we handle skills that are agent-specific in capability (e.g., Claude’s tool affordances) vs. portable?
-- License: MIT vs. Apache 2.0. (Leaning MIT for adoption.)
+v1 ships only the plumbing. The features that make agents-doctor distinct from `rulesync` and `Ruler` arrive in v2 and v3.
+
+- **v2 — AI-fix loop (headline feature).** A new `/doctor-fix` slash command, installed by `agents-doctor` into the user's Claude Code and Codex commands directories. Health checks classify issues into mechanical, decisive, and generative buckets and write the non-mechanical ones to `.agents-doctor/.todo.md`. The user runs `/doctor-fix` inside their agent; the agent reads the todo file, edits the SOT, runs `sync` and `check`, and reports what's left. The agent supplies judgment; agents-doctor supplies structure. This is the wedge.
+- **v2 — Anti-pattern lint.** Rule-level static analysis: vague phrasing, contradictions, dead `@references`, missing required frontmatter, instruction-count blowouts, over-broad globs. Necessary feed for the AI-fix loop.
+- **v3 — TUI.** Three tabs: rules × agents matrix, hierarchical browser, health dashboard. Read-only browse over the SOT and check results.
+- **Later.** More agents (Cursor, Windsurf, Gemini CLI, Copilot, Cline, Aider). MCP server management. Override files. Profiles. Semantic drift detection. Best-practices registry.
+
+## 14. Open questions
+
+- How should the compiler order multiple rules at the same `path` beyond `priority` then filename? Should `priority` be the only ordering signal, or do we need an explicit `order:` field?
+- For nested `<path>/CLAUDE.md` files: do we also emit a marker in the root `CLAUDE.md` so the agent can discover them, or rely on Claude Code's native nested-file discovery?
+- Should `check` ever auto-fix safe mechanical issues (e.g., re-emit a missing gen header) or always defer to `sync`?
 
 -----
 
-*This PRD intentionally omits implementation specifics. Architecture, file formats, schema definitions, and module breakdowns are deferred to a separate technical design document.*
+*This PRD intentionally omits implementation specifics. Architecture, file formats, and module breakdowns are deferred to a separate technical design document.*
