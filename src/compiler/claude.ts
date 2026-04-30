@@ -17,5 +17,11 @@ export function compileClaude(sot: Sot): CompiledOutput {
     files.set(joinPath(path, "CLAUDE.md"), Buffer.from(out, "utf8"));
   }
 
+  for (const skill of sot.skills) {
+    for (const file of skill.files) {
+      files.set(`.claude/skills/${skill.name}/${file.relativePath}`, file.bytes);
+    }
+  }
+
   return { files };
 }
