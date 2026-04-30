@@ -12,6 +12,12 @@
     "build": "tsc",
     "cli:dev": "tsx src/cli-dev.ts",
     "cli:demo": "tsx src/cli-demo.ts",
+    "demo": "node scripts/demo-all.mjs",
+    "demo:start": "node scripts/demo-reset.mjs",
+    "demo:reset": "node scripts/demo-reset.mjs",
+    "demo:init": "tsx src/cli-demo.ts init",
+    "demo:sync": "tsx src/cli-demo.ts sync",
+    "demo:check": "tsx src/cli-demo.ts check",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build"

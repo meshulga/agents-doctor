@@ -1,7 +1,3 @@
----
-agents: ["*"]
-path: src/components
----
 ## Component conventions
 
 - One component per file; filename matches the export.

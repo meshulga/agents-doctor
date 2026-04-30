@@ -145,3 +145,7 @@ vite.config.ts.timestamp-*
 # agents-doctor build output
 dist/
 
+# Demo working copy — populated by `npm run demo:reset` from
+# examples/demo.template/. Not source of truth.
+examples/demo/
+
