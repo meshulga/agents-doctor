@@ -1,2 +1,7 @@
 #!/usr/bin/env node
-import("../dist/cli.js").then((m) => m.main(process.argv.slice(2)));
+import("../dist/cli.js")
+  .then((m) => m.main(process.argv.slice(2)))
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
