@@ -1,0 +1,186 @@
+import { existsSync, readFileSync, mkdirSync, writeFileSync, cpSync } from "node:fs";
+import { dirname, join } from "node:path";
+import yaml from "js-yaml";
+import { splitByH2 } from "../headings.js";
+import { walkProject } from "../walk.js";
+import { runSync } from "./sync.js";
+import {
+  interactiveSelectAgent,
+  type AgentChoice,
+  type SelectAgentFn,
+} from "../prompt.js";
+import { serializeMarkdown } from "../compiler/frontmatter.js";
+
+export interface InitOptions {
+  projectRoot: string;
+  selectAgent?: SelectAgentFn;
+}
+
+export async function runInit(opts: InitOptions): Promise<void> {
+  const root = opts.projectRoot;
+  const select = opts.selectAgent ?? interactiveSelectAgent;
+
+  if (existsSync(join(root, ".agents-doctor"))) {
+    throw new Error(`.agents-doctor/ already exists at ${root}; refusing to overwrite`);
+  }
+
+  // 1. discover
+  const found: { path: string; agent: AgentChoice; absPath: string }[] = [];
+  for (const rel of walkProject(root)) {
+    const base = rel.split("/").at(-1);
+    if (base === "CLAUDE.md") {
+      found.push({ path: relDirOf(rel), agent: "claude", absPath: join(root, rel) });
+    } else if (base === "AGENTS.md") {
+      found.push({ path: relDirOf(rel), agent: "codex", absPath: join(root, rel) });
+    }
+  }
+
+  const hasClaude = found.some((f) => f.agent === "claude");
+  const hasCodex = found.some((f) => f.agent === "codex");
+  const hasSkills = existsSync(join(root, ".claude/skills"));
+  const hasCommands = existsSync(join(root, ".claude/commands"));
+
+  if (found.length === 0 && !hasSkills && !hasCommands) {
+    throw new Error("no agent files found to seed from");
+  }
+
+  // 2. priority agent (only matters if both agents are present)
+  const priority: AgentChoice = hasClaude && hasCodex
+    ? await select("Which agent wins on conflicts?")
+    : hasClaude ? "claude" : "codex";
+
+  // 3. group by path
+  const byPath = new Map<string, { claude?: string; codex?: string }>();
+  for (const f of found) {
+    const slot = byPath.get(f.path) ?? {};
+    if (f.agent === "claude") slot.claude = readFileSync(f.absPath, "utf8");
+    else slot.codex = readFileSync(f.absPath, "utf8");
+    byPath.set(f.path, slot);
+  }
+
+  // 4. resolve into rule files
+  const usedFilenames = new Set<string>();
+  const rules: { filename: string; frontmatter: Record<string, unknown>; body: string }[] = [];
+  for (const [path, sources] of byPath) {
+    rules.push(...resolveDirectory(path, sources, priority, usedFilenames));
+  }
+
+  // 5. write SOT
+  mkdirSync(join(root, ".agents-doctor/rules"), { recursive: true });
+  for (const r of rules) {
+    const body = r.body.replace(/\r\n/g, "\n");
+    writeFileSync(
+      join(root, ".agents-doctor/rules", r.filename),
+      serializeMarkdown(r.frontmatter, body),
+    );
+  }
+  if (hasSkills) {
+    cpSync(join(root, ".claude/skills"), join(root, ".agents-doctor/skills"), { recursive: true });
+  }
+  if (hasCommands) {
+    cpSync(join(root, ".claude/commands"), join(root, ".agents-doctor/commands"), { recursive: true });
+  }
+
+  const enabledAgents: AgentChoice[] = [];
+  if (hasClaude || hasSkills || hasCommands) enabledAgents.push("claude");
+  if (hasCodex) enabledAgents.push("codex");
+  if (enabledAgents.length === 0) enabledAgents.push("claude"); // safety net
+  writeFileSync(
+    join(root, ".agents-doctor/config.yaml"),
+    yaml.dump({ agents: enabledAgents }, { lineWidth: -1 }),
+  );
+
+  // 6. run sync
+  await runSync({ projectRoot: root });
+}
+
+function relDirOf(rel: string): string {
+  const dir = dirname(rel).replace(/\\/g, "/");
+  return dir === "." ? "." : dir;
+}
+
+interface ResolvedRule {
+  filename: string;
+  frontmatter: Record<string, unknown>;
+  body: string;
+}
+
+function resolveDirectory(
+  path: string,
+  sources: { claude?: string; codex?: string },
+  priority: AgentChoice,
+  usedFilenames: Set<string>,
+): ResolvedRule[] {
+  const claudeChunks = sources.claude ? splitByH2(sources.claude) : [];
+  const codexChunks = sources.codex ? splitByH2(sources.codex) : [];
+
+  // Build a key→chunk map per side, where key is the heading text or `__intro__`.
+  const claudeMap = new Map<string, string>();
+  for (const c of claudeChunks) claudeMap.set(c.heading ?? "__intro__", c.body);
+  const codexMap = new Map<string, string>();
+  for (const c of codexChunks) codexMap.set(c.heading ?? "__intro__", c.body);
+
+  // Preserve original ordering: walk claude then codex chunks in their original order, dedup.
+  const orderedKeys: string[] = [];
+  for (const c of claudeChunks) {
+    const k = c.heading ?? "__intro__";
+    if (!orderedKeys.includes(k)) orderedKeys.push(k);
+  }
+  for (const c of codexChunks) {
+    const k = c.heading ?? "__intro__";
+    if (!orderedKeys.includes(k)) orderedKeys.push(k);
+  }
+
+  const out: ResolvedRule[] = [];
+  for (const key of orderedKeys) {
+    const claudeBody = claudeMap.get(key);
+    const codexBody = codexMap.get(key);
+
+    let body: string;
+    let agents: AgentChoice[] | ["*"];
+    if (claudeBody !== undefined && codexBody !== undefined) {
+      if (claudeBody === codexBody) {
+        body = claudeBody;
+        agents = ["*"];
+      } else {
+        body = priority === "claude" ? claudeBody : codexBody;
+        agents = [priority];
+      }
+    } else if (claudeBody !== undefined) {
+      body = claudeBody;
+      agents = ["claude"];
+    } else {
+      body = codexBody!;
+      agents = ["codex"];
+    }
+
+    const filename = uniqueFilename(path, key, usedFilenames);
+    const frontmatter: Record<string, unknown> = { agents };
+    if (path !== ".") frontmatter.path = path;
+    out.push({ filename, frontmatter, body });
+  }
+  return out;
+}
+
+function slugify(input: string): string {
+  return (
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "section"
+  );
+}
+
+function uniqueFilename(path: string, key: string, used: Set<string>): string {
+  const headingSlug = key === "__intro__" ? "intro" : slugify(key);
+  const pathSlug = path === "." ? "" : slugify(path) + "--";
+  const base = `${pathSlug}${headingSlug}`;
+  let candidate = `${base}.md`;
+  let n = 2;
+  while (used.has(candidate)) {
+    candidate = `${base}-${n}.md`;
+    n++;
+  }
+  used.add(candidate);
+  return candidate;
+}

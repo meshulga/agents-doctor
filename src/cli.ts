@@ -1,4 +1,5 @@
 import { runCheck } from "./commands/check.js";
+import { runInit } from "./commands/init.js";
 import { runSync } from "./commands/sync.js";
 
 export async function main(argv: string[]): Promise<void> {
@@ -22,7 +23,9 @@ export async function main(argv: string[]): Promise<void> {
       process.exit(1);
     }
     case "init":
-      throw new Error("not implemented");
+      await runInit({ projectRoot: process.cwd() });
+      console.log("done");
+      return;
     case undefined:
     case "-h":
     case "--help":
