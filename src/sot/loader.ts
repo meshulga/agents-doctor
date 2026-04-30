@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import matter from "gray-matter";
+import { serializeMarkdown, whitelist } from "../compiler/frontmatter.js";
 import {
   Agent,
   Command,
@@ -135,10 +136,7 @@ function loadSkill(skillDir: string, name: string): Skill {
 function transformSkillMd(absPath: string): string {
   const raw = readFileSync(absPath, "utf8");
   const parsed = matter(raw);
-  const filtered: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(parsed.data)) {
-    if (SKILL_WHITELIST.has(k)) filtered[k] = v;
-  }
+  const filtered = whitelist(parsed.data, SKILL_WHITELIST);
   filtered.generated_by = "agents-doctor";
   return serializeMarkdown(filtered, parsed.content);
 }
@@ -150,10 +148,7 @@ function loadCommands(sotDir: string): Command[] {
   return files.map((filename) => {
     const raw = readFileSync(join(dir, filename), "utf8");
     const parsed = matter(raw);
-    const filtered: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(parsed.data)) {
-      if (COMMAND_WHITELIST.has(k)) filtered[k] = v;
-    }
+    const filtered = whitelist(parsed.data, COMMAND_WHITELIST);
     return {
       name: filename.replace(/\.md$/, ""),
       frontmatter: filtered,
@@ -175,15 +170,4 @@ function allFilesUnder(dir: string): string[] {
     }
   }
   return out.sort();
-}
-
-export function serializeMarkdown(
-  frontmatter: Record<string, unknown>,
-  body: string,
-): string {
-  const yamlText = Object.keys(frontmatter).length
-    ? yaml.dump(frontmatter, { lineWidth: -1 })
-    : "";
-  const fmBlock = yamlText ? `---\n${yamlText}---\n` : "";
-  return fmBlock + body;
 }
