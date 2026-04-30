@@ -23,15 +23,11 @@ fixture, not your real project.
 
 ```
 npm run demo            # full loop: reset → init → check → drift → sync → check
-npm run demo:start      # alias of demo:reset; copy template → working
 npm run demo:reset      # restore working copy from template
 npm run demo:init       # bootstrap .agents-doctor/ from agent files
 npm run demo:sync       # regenerate agent configs from .agents-doctor/
 npm run demo:check      # verify on-disk agent files match .agents-doctor/
 ```
-
-`demo:start` is an alias of `demo:reset`. Use whichever name reads
-better in context.
 
 ## What the template covers
 

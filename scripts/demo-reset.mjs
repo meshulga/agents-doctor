@@ -4,7 +4,7 @@
 // renamed to drop the suffix on copy. The .tpl rename keeps real
 // CLAUDE.md/AGENTS.md files out of the committed tree so the parent
 // Claude Code session doesn't accidentally treat them as instructions.
-// Used by `npm run demo:start` / `npm run demo:reset`.
+// Used by `npm run demo:reset`.
 
 import {
   copyFileSync,
