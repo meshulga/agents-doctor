@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { runCheck } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runSync } from "./commands/sync.js";
@@ -5,6 +8,10 @@ import { runSync } from "./commands/sync.js";
 export async function main(argv: string[]): Promise<void> {
   const [cmd, ..._rest] = argv;
   switch (cmd) {
+    case "-v":
+    case "--version":
+      console.log(readPackageVersion());
+      return;
     case "sync": {
       const result = await runSync({ projectRoot: process.cwd() });
       console.log(`Wrote ${result.written.length} file(s):`);
@@ -43,6 +50,16 @@ export async function main(argv: string[]): Promise<void> {
       printHelp();
       process.exit(2);
   }
+}
+
+function readPackageVersion(): string {
+  // dist/cli.js sits one level deep inside the published package; package.json
+  // is at the package root.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+    version?: string;
+  };
+  return pkg.version ?? "unknown";
 }
 
 function printHelp(): void {
