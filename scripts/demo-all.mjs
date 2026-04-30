@@ -53,10 +53,9 @@ run("node", [join(repoRoot, "scripts/demo-reset.mjs")]);
 step(2, "Brownfield project tree (no .agents-doctor/ yet)");
 tree(demo);
 
-step(3, "Run init — pipes 'claude' as the priority agent");
+step(3, "Run init — picks 'claude' as the priority agent (via env var)");
 run("npm", ["--prefix", repoRoot, "run", "cli:demo", "--silent", "--", "init"], {
-  input: "claude\n",
-  stdio: ["pipe", "inherit", "inherit"],
+  env: { ...process.env, AGENTS_DOCTOR_PRIORITY: "claude" },
 });
 
 step(4, "Project tree after init");

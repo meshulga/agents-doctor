@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { runCheck, type CheckIssue } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runSync } from "./commands/sync.js";
-import { ui } from "./ui.js";
+import { renderDiff, ui } from "./ui.js";
 
 export async function main(argv: string[]): Promise<void> {
   const [cmd, ..._rest] = argv;
@@ -57,18 +57,23 @@ function printWritten(header: string, files: string[]): void {
 function printIssues(issues: CheckIssue[]): void {
   // Group by kind so a long list of mismatches doesn't drown out the
   // (usually rarer) missing/extra entries.
-  const buckets: Record<CheckIssue["kind"], string[]> = {
+  const buckets: Record<CheckIssue["kind"], CheckIssue[]> = {
     missing: [],
     mismatch: [],
     extra: [],
   };
-  for (const i of issues) buckets[i.kind].push(i.path);
+  for (const i of issues) buckets[i.kind].push(i);
 
   for (const kind of ["missing", "mismatch", "extra"] as const) {
-    const paths = buckets[kind];
-    if (paths.length === 0) continue;
-    console.log(ui.fail(`${paths.length} ${kind}`));
-    for (const p of paths) console.log(`  ${ui.dim("·")} ${p}`);
+    const list = buckets[kind];
+    if (list.length === 0) continue;
+    console.log(ui.fail(`${list.length} ${kind}`));
+    for (const i of list) {
+      console.log(`  ${ui.dim("·")} ${i.path}`);
+      if (kind === "mismatch" && i.expected && i.actual) {
+        console.log(renderDiff(i.expected, i.actual));
+      }
+    }
   }
 }
 

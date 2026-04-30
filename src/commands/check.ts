@@ -8,6 +8,10 @@ import { normalizeLf } from "../compiler/rules.js";
 export interface CheckIssue {
   kind: "missing" | "mismatch" | "extra";
   path: string;
+  /** Compiled bytes (only set for `mismatch`). Lets the CLI render a diff. */
+  expected?: Buffer;
+  /** On-disk bytes (only set for `mismatch`). Lets the CLI render a diff. */
+  actual?: Buffer;
 }
 
 export interface CheckResult {
@@ -33,7 +37,7 @@ export async function runCheck(opts: CheckOptions): Promise<CheckResult> {
     }
     const onDisk = readFileSync(abs);
     if (!buffersMatchLf(onDisk, bytes)) {
-      issues.push({ kind: "mismatch", path: rel });
+      issues.push({ kind: "mismatch", path: rel, expected: bytes, actual: onDisk });
     }
   }
 
