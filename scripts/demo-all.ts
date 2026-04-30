@@ -2,10 +2,11 @@
 // Runs the full agents-doctor demo loop end-to-end: reset → init → check →
 // drift → sync → check. Intended to be invoked via `npm run demo`.
 
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncOptions } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderTree } from "../src/ui.ts";
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const demo = join(repoRoot, "examples/demo");
@@ -14,35 +15,35 @@ const BOLD = "[1m";
 const DIM = "[2m";
 const RESET = "[0m";
 
-function step(n, label) {
+function step(n: number, label: string): void {
   console.log(`\n${BOLD}── step ${n}: ${label} ──${RESET}`);
 }
 
-function run(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { stdio: "inherit", ...opts });
-  if (r.status !== 0 && !opts.allowFailure) {
+interface RunOpts extends SpawnSyncOptions {
+  allowFailure?: boolean;
+}
+
+function run(cmd: string, args: string[], opts: RunOpts = {}): number {
+  const { allowFailure, ...spawnOpts } = opts;
+  const r = spawnSync(cmd, args, { stdio: "inherit", ...spawnOpts });
+  if (r.status !== 0 && !allowFailure) {
     console.error(`\ncommand failed: ${cmd} ${args.join(" ")}`);
     process.exit(r.status ?? 1);
   }
   return r.status ?? 0;
 }
 
-function tree(root) {
-  const entries = walk(root, root);
-  for (const rel of entries) console.log(`  ${rel}`);
+function tree(root: string): void {
+  console.log(renderTree(filesUnder(root, root)));
 }
 
-function walk(root, dir) {
-  const out = [];
+function filesUnder(root: string, dir: string): string[] {
+  const out: string[] = [];
   for (const name of readdirSync(dir).sort()) {
     const abs = join(dir, name);
     const rel = relative(root, abs).split(/\\/g).join("/");
-    if (statSync(abs).isDirectory()) {
-      out.push(rel + "/");
-      out.push(...walk(root, abs));
-    } else {
-      out.push(rel);
-    }
+    if (statSync(abs).isDirectory()) out.push(...filesUnder(root, abs));
+    else out.push(rel);
   }
   return out;
 }

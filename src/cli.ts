@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { runCheck, type CheckIssue } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runSync } from "./commands/sync.js";
-import { renderDiff, ui } from "./ui.js";
+import { renderDiff, renderTree, ui } from "./ui.js";
 
 export async function main(argv: string[]): Promise<void> {
   const [cmd, ..._rest] = argv;
@@ -51,7 +51,7 @@ export async function main(argv: string[]): Promise<void> {
 
 function printWritten(header: string, files: string[]): void {
   console.log(ui.ok(`${header}:`));
-  for (const f of [...files].sort()) console.log(`  ${ui.dim(f)}`);
+  if (files.length > 0) console.log(renderTree(files));
 }
 
 function printIssues(issues: CheckIssue[]): void {
