@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runCheck } from "./commands/check.js";
+import { runCheck, type CheckIssue } from "./commands/check.js";
 import { runInit } from "./commands/init.js";
 import { runSync } from "./commands/sync.js";
+import { ui } from "./ui.js";
 
 export async function main(argv: string[]): Promise<void> {
   const [cmd, ..._rest] = argv;
@@ -14,19 +15,16 @@ export async function main(argv: string[]): Promise<void> {
       return;
     case "sync": {
       const result = await runSync({ projectRoot: resolveProjectRoot() });
-      console.log(`Wrote ${result.written.length} file(s):`);
-      for (const f of result.written.sort()) console.log(`  ${f}`);
+      printWritten(`Wrote ${result.written.length} file(s)`, result.written);
       return;
     }
     case "check": {
       const result = await runCheck({ projectRoot: resolveProjectRoot() });
       if (result.ok) {
-        console.log("ok");
+        console.log(ui.ok("ok"));
         return;
       }
-      for (const i of result.issues) {
-        console.log(`${i.kind}: ${i.path}`);
-      }
+      printIssues(result.issues);
       process.exit(1);
     }
     case "init": {
@@ -34,10 +32,9 @@ export async function main(argv: string[]): Promise<void> {
       // After an interactive prompt the user's answer doesn't end with a
       // newline, so lead with one to keep the summary on its own line.
       console.log(
-        `\nInitialized .agents-doctor/ with ${result.rulesEmitted} rule(s).`,
+        `\n${ui.ok(`Initialized .agents-doctor/ with ${result.rulesEmitted} rule(s).`)}`,
       );
-      console.log(`Wrote ${result.filesWritten.length} file(s):`);
-      for (const f of [...result.filesWritten].sort()) console.log(`  ${f}`);
+      printWritten(`Wrote ${result.filesWritten.length} file(s)`, result.filesWritten);
       return;
     }
     case undefined:
@@ -49,6 +46,29 @@ export async function main(argv: string[]): Promise<void> {
       console.error(`unknown command: ${cmd}`);
       printHelp();
       process.exit(2);
+  }
+}
+
+function printWritten(header: string, files: string[]): void {
+  console.log(ui.ok(`${header}:`));
+  for (const f of [...files].sort()) console.log(`  ${ui.dim(f)}`);
+}
+
+function printIssues(issues: CheckIssue[]): void {
+  // Group by kind so a long list of mismatches doesn't drown out the
+  // (usually rarer) missing/extra entries.
+  const buckets: Record<CheckIssue["kind"], string[]> = {
+    missing: [],
+    mismatch: [],
+    extra: [],
+  };
+  for (const i of issues) buckets[i.kind].push(i.path);
+
+  for (const kind of ["missing", "mismatch", "extra"] as const) {
+    const paths = buckets[kind];
+    if (paths.length === 0) continue;
+    console.log(ui.fail(`${paths.length} ${kind}`));
+    for (const p of paths) console.log(`  ${ui.dim("·")} ${p}`);
   }
 }
 
