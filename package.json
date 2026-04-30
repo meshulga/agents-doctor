@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc",
     "cli:dev": "tsx src/cli-dev.ts",
+    "cli:demo": "tsx src/cli-demo.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build"

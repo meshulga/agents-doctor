@@ -24,40 +24,47 @@ examples/demo/
 
 ## Run it
 
-From this directory:
+From the agents-doctor repo root, no `cd` needed:
 
 ```bash
-cd examples/demo
-npm --prefix ../.. run cli:dev -- check
+npm run cli:demo -- check
 ```
 
-You should see `ok`.
+You should see `ok`. The `cli:demo` script always targets this fixture.
+
+The flows below use `cli:demo` for brevity. They mutate files inside
+this directory, so `git checkout examples/demo` will reset everything
+when you're done.
 
 ## Try these flows
+
+The flows below mutate files inside this directory, so `cd examples/demo`
+before running them. The `cli:demo` script itself doesn't care where you
+run it from.
 
 ### 1. Edit a rule, see drift, re-sync
 
 ```bash
 # break the synced output
 sed -i.bak 's/2-space/4-space/' .agents-doctor/rules/001-style.md && rm -f .agents-doctor/rules/001-style.md.bak
-npm --prefix ../.. run cli:dev -- check        # mismatch on CLAUDE.md and AGENTS.md
-npm --prefix ../.. run cli:dev -- sync         # re-emits both files
-npm --prefix ../.. run cli:dev -- check        # ok again
+npm run cli:demo -- check        # mismatch on CLAUDE.md and AGENTS.md
+npm run cli:demo -- sync         # re-emits both files
+npm run cli:demo -- check        # ok again
 ```
 
 ### 2. Edit a generated file directly, see check catch the drift
 
 ```bash
 echo '# tampered' > CLAUDE.md
-npm --prefix ../.. run cli:dev -- check        # mismatch on CLAUDE.md
-npm --prefix ../.. run cli:dev -- sync         # restore
+npm run cli:demo -- check        # mismatch on CLAUDE.md
+npm run cli:demo -- sync         # restore
 ```
 
 ### 3. Add a stray agent file, see it flagged as extra
 
 ```bash
 mkdir -p docs && echo 'stray' > docs/CLAUDE.md
-npm --prefix ../.. run cli:dev -- check        # extra: docs/CLAUDE.md
+npm run cli:demo -- check        # extra: docs/CLAUDE.md
 rm -rf docs
 ```
 
@@ -65,14 +72,15 @@ rm -rf docs
 
 ```bash
 echo 'stray' > .claude/commands/stray.md
-npm --prefix ../.. run cli:dev -- check        # extra: .claude/commands/stray.md
+npm run cli:demo -- check        # extra: .claude/commands/stray.md
 rm .claude/commands/stray.md
 ```
 
 ### 5. Try init from scratch
 
 `init` refuses to run when `.agents-doctor/` already exists. To try it,
-copy the project elsewhere and delete the SOT first:
+copy the project elsewhere and delete the SOT first, then use `cli:dev`
+(which honors `INIT_CWD`) from the copied dir:
 
 ```bash
 cp -r examples/demo /tmp/demo-init && rm -rf /tmp/demo-init/.agents-doctor
@@ -86,9 +94,8 @@ sections between `CLAUDE.md` and `AGENTS.md`.
 
 ## Notes
 
-- `npm --prefix ../..` makes npm find the agents-doctor scripts even
-  though we're running from this fixture. Inside the script, `INIT_CWD`
-  carries the demo dir, so the CLI operates here, not on the source repo.
+- `cli:demo` pins `INIT_CWD` to this fixture, so it works from any cwd.
+  Use `cli:dev` instead for arbitrary projects.
 - `priority: high` on `000-overview.md` makes that rule sort first
   inside the compiled `CLAUDE.md` / `AGENTS.md`, ahead of `001-style.md`
   even though the filename ordinal would normally come second.
