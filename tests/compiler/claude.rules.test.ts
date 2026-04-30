@@ -73,4 +73,26 @@ describe("compileClaude rules", () => {
     );
     expect([...out.files.keys()]).toEqual([]);
   });
+
+  it("includes rules with explicit multi-agent list ['claude','codex']", () => {
+    const out = compileClaude(
+      sot([
+        rule({ filename: "shared.md", body: "shared body\n", frontmatter: { agents: ["claude", "codex"], priority: "normal", path: "." } }),
+      ]),
+    );
+    const content = out.files.get("CLAUDE.md")!.toString("utf8");
+    expect(content).toBe(HEADER + "shared body\n");
+  });
+
+  it("orders rules at a nested path: high → normal → low, then by filename", () => {
+    const out = compileClaude(
+      sot([
+        rule({ filename: "z.md", body: "Z\n", frontmatter: { agents: ["*"], priority: "low", path: "src/app" } }),
+        rule({ filename: "a.md", body: "A\n", frontmatter: { agents: ["*"], priority: "normal", path: "src/app" } }),
+        rule({ filename: "h.md", body: "H\n", frontmatter: { agents: ["*"], priority: "high", path: "src/app" } }),
+      ]),
+    );
+    const content = out.files.get("src/app/CLAUDE.md")!.toString("utf8");
+    expect(content).toBe(HEADER + "H\n\nA\n\nZ\n");
+  });
 });

@@ -85,6 +85,39 @@ describe("loadSot", () => {
     expect(() => loadSot(root)).toThrow(/\.agents-doctor/);
   });
 
+  it("rejects empty config.yaml agents list", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: []\n");
+    expect(() => loadSot(root)).toThrow(/non-empty agents/);
+  });
+
+  it("rejects unknown agent in config.yaml", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [gemini]\n");
+    expect(() => loadSot(root)).toThrow(/unknown agent/);
+  });
+
+  it("rejects rule with non-array agents field", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doctor/rules/bad.md", "---\nagents: claude\n---\nbody\n");
+    expect(() => loadSot(root)).toThrow(/agents must be an array/);
+  });
+
+  it("rejects rule with unknown priority value", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doctor/rules/bad.md", "---\npriority: medium\n---\nbody\n");
+    expect(() => loadSot(root)).toThrow(/priority must be high\|normal\|low/);
+  });
+
+  it("rejects rule with non-array globs", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doctor/rules/bad.md", "---\nglobs: '*.ts'\n---\nbody\n");
+    expect(() => loadSot(root)).toThrow(/globs must be an array/);
+  });
+
   it("normalizes rule path frontmatter (strips leading ./, trailing /, blank → .)", () => {
     const root = makeTmpDir();
     writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");

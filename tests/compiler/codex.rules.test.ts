@@ -35,4 +35,14 @@ describe("compileCodex rules", () => {
     );
     expect([...out.files.keys()]).toEqual([]);
   });
+
+  it("includes rules with explicit multi-agent list ['claude','codex']", () => {
+    const out = compileCodex(
+      sot([
+        rule({ filename: "shared.md", body: "shared body\n", frontmatter: { agents: ["claude", "codex"], priority: "normal", path: "." } }),
+      ]),
+    );
+    const content = out.files.get("AGENTS.md")!.toString("utf8");
+    expect(content).toBe(HEADER + "shared body\n");
+  });
 });
