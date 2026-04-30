@@ -13,13 +13,13 @@ export async function main(argv: string[]): Promise<void> {
       console.log(readPackageVersion());
       return;
     case "sync": {
-      const result = await runSync({ projectRoot: process.cwd() });
+      const result = await runSync({ projectRoot: resolveProjectRoot() });
       console.log(`Wrote ${result.written.length} file(s):`);
       for (const f of result.written.sort()) console.log(`  ${f}`);
       return;
     }
     case "check": {
-      const result = await runCheck({ projectRoot: process.cwd() });
+      const result = await runCheck({ projectRoot: resolveProjectRoot() });
       if (result.ok) {
         console.log("ok");
         return;
@@ -30,7 +30,7 @@ export async function main(argv: string[]): Promise<void> {
       process.exit(1);
     }
     case "init": {
-      const result = await runInit({ projectRoot: process.cwd() });
+      const result = await runInit({ projectRoot: resolveProjectRoot() });
       // After an interactive prompt the user's answer doesn't end with a
       // newline, so lead with one to keep the summary on its own line.
       console.log(
@@ -50,6 +50,14 @@ export async function main(argv: string[]): Promise<void> {
       printHelp();
       process.exit(2);
   }
+}
+
+function resolveProjectRoot(): string {
+  // npm sets INIT_CWD to the directory the user was in before npm changed
+  // dirs to run a script. Prefer it so `npm --prefix /path/to/repo run
+  // cli:dev -- check` targets the user's fixture, not the repo. Falls back
+  // to process.cwd() for direct bin/global invocations.
+  return process.env.INIT_CWD ?? process.cwd();
 }
 
 function readPackageVersion(): string {
