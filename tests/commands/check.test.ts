@@ -74,4 +74,18 @@ describe("runCheck", () => {
     const r = await runCheck({ projectRoot: root });
     expect(r.ok).toBe(true);
   });
+
+  it("round-trips clean when rule path uses ./ prefix or trailing slash", async () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(
+      root,
+      ".agents-doctor/rules/nested.md",
+      "---\npath: ./src/app/\n---\nbody\n",
+    );
+    await runSync({ projectRoot: root });
+    const r = await runCheck({ projectRoot: root });
+    expect(r.ok).toBe(true);
+    expect(r.issues).toEqual([]);
+  });
 });

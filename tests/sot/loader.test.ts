@@ -84,4 +84,20 @@ describe("loadSot", () => {
     const root = makeTmpDir();
     expect(() => loadSot(root)).toThrow(/\.agents-doctor/);
   });
+
+  it("normalizes rule path frontmatter (strips leading ./, trailing /, blank → .)", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doctor/rules/a.md", "---\npath: ./src/app/\n---\nbody\n");
+    writeFile(root, ".agents-doctor/rules/b.md", "---\npath: src/app\n---\nbody\n");
+    writeFile(root, ".agents-doctor/rules/c.md", "---\npath: ./\n---\nbody\n");
+
+    const sot = loadSot(root);
+    const a = sot.rules.find((r) => r.filename === "a.md")!;
+    const b = sot.rules.find((r) => r.filename === "b.md")!;
+    const c = sot.rules.find((r) => r.filename === "c.md")!;
+    expect(a.frontmatter.path).toBe("src/app");
+    expect(b.frontmatter.path).toBe("src/app");
+    expect(c.frontmatter.path).toBe(".");
+  });
 });

@@ -97,13 +97,18 @@ function mergeRuleFrontmatter(
   }
   if (raw.path !== undefined) {
     if (typeof raw.path !== "string") throw new Error(`${filename}: path must be a string`);
-    out.path = raw.path;
+    out.path = normalizePath(raw.path);
   }
   if (raw.globs !== undefined) {
     if (!Array.isArray(raw.globs)) throw new Error(`${filename}: globs must be an array`);
     out.globs = raw.globs as string[];
   }
   return out;
+}
+
+function normalizePath(input: string): string {
+  const trimmed = input.trim().replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  return trimmed === "" ? "." : trimmed;
 }
 
 function loadSkills(sotDir: string): Skill[] {
