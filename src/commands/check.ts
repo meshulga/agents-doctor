@@ -37,15 +37,17 @@ export async function runCheck(opts: CheckOptions): Promise<CheckResult> {
     }
   }
 
-  // 2. walk for stray CLAUDE.md / AGENTS.md and stray .claude/skills,.claude/commands
+  // 2. walk for stray CLAUDE.md / AGENTS.md and stray .claude/skills, .claude/commands.
+  // The two conditions can overlap (e.g. .claude/skills/x/CLAUDE.md), so we use
+  // a single guard with `||` to avoid emitting two `extra` issues for one path.
   const expected = new Set(compiled.files.keys());
   for (const rel of walkProject(opts.projectRoot)) {
     const base = rel.split("/").at(-1);
-    if (base === "CLAUDE.md" || base === "AGENTS.md") {
-      if (!expected.has(rel)) issues.push({ kind: "extra", path: rel });
-    }
-    if (rel.startsWith(".claude/skills/") || rel.startsWith(".claude/commands/")) {
-      if (!expected.has(rel)) issues.push({ kind: "extra", path: rel });
+    const isAgentFile = base === "CLAUDE.md" || base === "AGENTS.md";
+    const isUnderClaudeDir =
+      rel.startsWith(".claude/skills/") || rel.startsWith(".claude/commands/");
+    if ((isAgentFile || isUnderClaudeDir) && !expected.has(rel)) {
+      issues.push({ kind: "extra", path: rel });
     }
   }
 

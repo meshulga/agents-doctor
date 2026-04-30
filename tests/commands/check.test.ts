@@ -75,6 +75,21 @@ describe("runCheck", () => {
     expect(r.ok).toBe(true);
   });
 
+  it("flags a stray CLAUDE.md inside .claude/skills/ exactly once", async () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doctor/rules/r.md", "---\n---\nbody\n");
+    await runSync({ projectRoot: root });
+    // Stray file matches BOTH the basename branch and the `.claude/skills/`
+    // prefix branch. Without the dedupe it would emit two `extra` issues.
+    writeFile(root, ".claude/skills/foo/CLAUDE.md", "stray\n");
+    const r = await runCheck({ projectRoot: root });
+    const matches = r.issues.filter(
+      (i) => i.kind === "extra" && i.path === ".claude/skills/foo/CLAUDE.md",
+    );
+    expect(matches).toHaveLength(1);
+  });
+
   it("round-trips clean when rule path uses ./ prefix or trailing slash", async () => {
     const root = makeTmpDir();
     writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");

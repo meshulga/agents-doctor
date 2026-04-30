@@ -10,11 +10,9 @@ const PRIORITY_RANK: Record<Rule["frontmatter"]["priority"], number> = {
 };
 
 export function rulesForAgent(rules: Rule[], agent: Agent): Rule[] {
-  return rules.filter((r) => {
-    const a = r.frontmatter.agents;
-    if (a.length === 1 && a[0] === "*") return true;
-    return (a as Agent[]).includes(agent);
-  });
+  return rules.filter((r) =>
+    r.frontmatter.agents.some((a) => a === "*" || a === agent),
+  );
 }
 
 export function groupByPath(rules: Rule[]): Map<string, Rule[]> {

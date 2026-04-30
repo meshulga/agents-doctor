@@ -95,7 +95,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const enabledAgents: AgentChoice[] = [];
   if (hasClaude || hasSkills || hasCommands) enabledAgents.push("claude");
   if (hasCodex) enabledAgents.push("codex");
-  if (enabledAgents.length === 0) enabledAgents.push("claude"); // safety net
+  // enabledAgents is guaranteed non-empty by the earlier `no agent files` throw.
   writeFileSync(
     join(root, ".agents-doctor/config.yaml"),
     yaml.dump({ agents: enabledAgents }, { lineWidth: -1 }),
