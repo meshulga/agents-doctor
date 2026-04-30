@@ -126,4 +126,15 @@ describe("runInit", () => {
     const r = await runCheck({ projectRoot: root });
     expect(r.ok).toBe(true);
   });
+
+  it("returns a summary of rules emitted and files synced", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "intro\n## A\nbody\n## B\nbody\n");
+    writeFile(root, "AGENTS.md", "intro\n## A\nbody\n## B\nbody\n");
+    const result = await runInit({ projectRoot: root, selectAgent: stubSelect });
+    // 3 chunks (intro, A, B), so 3 rules emitted.
+    expect(result.rulesEmitted).toBe(3);
+    // sync should write CLAUDE.md and AGENTS.md.
+    expect(result.filesWritten.sort()).toEqual(["AGENTS.md", "CLAUDE.md"]);
+  });
 });

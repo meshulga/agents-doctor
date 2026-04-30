@@ -22,10 +22,17 @@ export async function main(argv: string[]): Promise<void> {
       }
       process.exit(1);
     }
-    case "init":
-      await runInit({ projectRoot: process.cwd() });
-      console.log("done");
+    case "init": {
+      const result = await runInit({ projectRoot: process.cwd() });
+      // After an interactive prompt the user's answer doesn't end with a
+      // newline, so lead with one to keep the summary on its own line.
+      console.log(
+        `\nInitialized .agents-doctor/ with ${result.rulesEmitted} rule(s).`,
+      );
+      console.log(`Wrote ${result.filesWritten.length} file(s):`);
+      for (const f of [...result.filesWritten].sort()) console.log(`  ${f}`);
       return;
+    }
     case undefined:
     case "-h":
     case "--help":

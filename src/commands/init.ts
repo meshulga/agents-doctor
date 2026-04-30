@@ -16,7 +16,12 @@ export interface InitOptions {
   selectAgent?: SelectAgentFn;
 }
 
-export async function runInit(opts: InitOptions): Promise<void> {
+export interface InitResult {
+  rulesEmitted: number;
+  filesWritten: string[];
+}
+
+export async function runInit(opts: InitOptions): Promise<InitResult> {
   const root = opts.projectRoot;
   const select = opts.selectAgent ?? interactiveSelectAgent;
 
@@ -94,7 +99,8 @@ export async function runInit(opts: InitOptions): Promise<void> {
   );
 
   // 6. run sync
-  await runSync({ projectRoot: root });
+  const sync = await runSync({ projectRoot: root });
+  return { rulesEmitted: rules.length, filesWritten: sync.written };
 }
 
 function relDirOf(rel: string): string {
