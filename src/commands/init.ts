@@ -29,9 +29,12 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     throw new Error(`.agents-doctor/ already exists at ${root}; refusing to overwrite`);
   }
 
-  // 1. discover
+  // 1. discover. Skip .claude/ — its CLAUDE.md (e.g. inside a skill folder
+  // shipped as docs) is not a rule, and skills/commands are picked up by the
+  // dedicated cpSync below.
   const found: { path: string; agent: AgentChoice; absPath: string }[] = [];
   for (const rel of walkProject(root)) {
+    if (rel.startsWith(".claude/")) continue;
     const base = rel.split("/").at(-1);
     if (base === "CLAUDE.md") {
       found.push({ path: relDirOf(rel), agent: "claude", absPath: join(root, rel) });

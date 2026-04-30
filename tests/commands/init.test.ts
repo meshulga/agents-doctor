@@ -127,6 +127,22 @@ describe("runInit", () => {
     expect(r.ok).toBe(true);
   });
 
+  it("ignores CLAUDE.md and AGENTS.md inside .claude/ during discovery", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "## Real\nbody\n");
+    // A skill folder happens to ship a CLAUDE.md as docs — must NOT be treated as a rule.
+    writeFile(root, ".claude/skills/foo/SKILL.md", "---\nname: foo\n---\n");
+    writeFile(root, ".claude/skills/foo/CLAUDE.md", "stray docs\n");
+    writeFile(root, ".claude/skills/foo/AGENTS.md", "stray docs\n");
+
+    const result = await runInit({ projectRoot: root, selectAgent: stubSelect });
+
+    // Only one rule from the real root CLAUDE.md.
+    expect(result.rulesEmitted).toBe(1);
+    const ruleFiles = readdirSync(join(root, ".agents-doctor/rules"));
+    expect(ruleFiles).toHaveLength(1);
+  });
+
   it("returns a summary of rules emitted and files synced", async () => {
     const root = makeTmpDir();
     writeFile(root, "CLAUDE.md", "intro\n## A\nbody\n## B\nbody\n");
