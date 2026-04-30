@@ -148,7 +148,7 @@ agents: [claude, codex]
 Every file in `rules/` carries YAML frontmatter:
 
 - `agents`: list of target agents (`claude`, `codex`), or `["*"]` for all. Default `["*"]`.
-- `globs`: file-path patterns the rule applies to. Surfaced as a hint inside the compiled output. Optional.
+- `globs`: file-path patterns the rule applies to. Optional metadata recorded in the SOT but not surfaced in v1's compiled output (rule frontmatter is stripped entirely per §8.3). Reserved for use by the v2 anti-pattern lint and AI-fix loop.
 - `priority`: `high` / `normal` / `low`. Used as an ordering hint inside the compiled output (high first). Default `normal`.
 - `path`: project-relative directory where this rule's compiled output should be placed. Default `.` (project root). Multiple rules with the same `path` are merged into a single `CLAUDE.md` / `AGENTS.md` at that location.
 
