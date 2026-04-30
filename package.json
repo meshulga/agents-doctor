@@ -10,7 +10,7 @@
   "files": ["bin", "dist"],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/cli.ts",
+    "cli:dev": "tsx src/cli-dev.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build"
