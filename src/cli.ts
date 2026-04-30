@@ -1,3 +1,4 @@
+import { runCheck } from "./commands/check.js";
 import { runSync } from "./commands/sync.js";
 
 export async function main(argv: string[]): Promise<void> {
@@ -9,8 +10,17 @@ export async function main(argv: string[]): Promise<void> {
       for (const f of result.written.sort()) console.log(`  ${f}`);
       return;
     }
-    case "check":
-      throw new Error("not implemented");
+    case "check": {
+      const result = await runCheck({ projectRoot: process.cwd() });
+      if (result.ok) {
+        console.log("ok");
+        return;
+      }
+      for (const i of result.issues) {
+        console.log(`${i.kind}: ${i.path}`);
+      }
+      process.exit(1);
+    }
     case "init":
       throw new Error("not implemented");
     case undefined:
