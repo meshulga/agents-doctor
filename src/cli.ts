@@ -1,8 +1,14 @@
+import { runSync } from "./commands/sync.js";
+
 export async function main(argv: string[]): Promise<void> {
   const [cmd, ..._rest] = argv;
   switch (cmd) {
-    case "sync":
-      throw new Error("not implemented");
+    case "sync": {
+      const result = await runSync({ projectRoot: process.cwd() });
+      console.log(`Wrote ${result.written.length} file(s):`);
+      for (const f of result.written.sort()) console.log(`  ${f}`);
+      return;
+    }
     case "check":
       throw new Error("not implemented");
     case "init":
