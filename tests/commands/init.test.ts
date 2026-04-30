@@ -8,6 +8,12 @@ import type { SelectAgentFn } from "../../src/prompt.js";
 
 const stubSelect: SelectAgentFn = async () => "claude";
 
+function findRule(rulesDir: string, suffix: string): string {
+  const file = readdirSync(rulesDir).find((f) => f.endsWith(suffix));
+  if (!file) throw new Error(`no rule ending with ${suffix} in ${rulesDir}`);
+  return join(rulesDir, file);
+}
+
 describe("runInit", () => {
   it("aborts non-zero if .agents-doctor/ already exists", async () => {
     const root = makeTmpDir();
@@ -15,16 +21,18 @@ describe("runInit", () => {
     await expect(runInit({ projectRoot: root, selectAgent: stubSelect })).rejects.toThrow(/already/);
   });
 
-  it("creates SOT from CLAUDE.md only at root", async () => {
+  it("creates SOT from CLAUDE.md only at root, preserving section order", async () => {
     const root = makeTmpDir();
     writeFile(root, "CLAUDE.md", "intro\n## Style\nuse spaces\n");
     await runInit({ projectRoot: root, selectAgent: stubSelect });
 
     expect(existsSync(join(root, ".agents-doctor/config.yaml"))).toBe(true);
-    const ruleFiles = readdirSync(join(root, ".agents-doctor/rules"));
-    expect(ruleFiles.sort()).toEqual(["intro.md", "style.md"]);
+    const ruleFiles = readdirSync(join(root, ".agents-doctor/rules")).sort();
+    expect(ruleFiles).toHaveLength(2);
+    expect(ruleFiles[0]).toMatch(/^000-.*intro\.md$/);
+    expect(ruleFiles[1]).toMatch(/^001-.*style\.md$/);
 
-    const style = matter(readFileSync(join(root, ".agents-doctor/rules/style.md"), "utf8"));
+    const style = matter(readFileSync(findRule(join(root, ".agents-doctor/rules"), "-style.md"), "utf8"));
     expect(style.data.agents).toEqual(["claude"]);
     expect(style.content).toContain("## Style");
     expect(style.content).toContain("use spaces");
@@ -35,7 +43,7 @@ describe("runInit", () => {
     writeFile(root, "CLAUDE.md", "## Style\nuse spaces\n");
     writeFile(root, "AGENTS.md", "## Style\nuse spaces\n");
     await runInit({ projectRoot: root, selectAgent: stubSelect });
-    const style = matter(readFileSync(join(root, ".agents-doctor/rules/style.md"), "utf8"));
+    const style = matter(readFileSync(findRule(join(root, ".agents-doctor/rules"), "-style.md"), "utf8"));
     expect(style.data.agents).toEqual(["*"]);
   });
 
@@ -44,7 +52,7 @@ describe("runInit", () => {
     writeFile(root, "CLAUDE.md", "## Style\nuse spaces\n");
     writeFile(root, "AGENTS.md", "## Style\nuse tabs\n");
     await runInit({ projectRoot: root, selectAgent: async () => "claude" });
-    const style = matter(readFileSync(join(root, ".agents-doctor/rules/style.md"), "utf8"));
+    const style = matter(readFileSync(findRule(join(root, ".agents-doctor/rules"), "-style.md"), "utf8"));
     expect(style.data.agents).toEqual(["claude"]);
     expect(style.content).toContain("use spaces");
     expect(style.content).not.toContain("use tabs");
@@ -55,9 +63,10 @@ describe("runInit", () => {
     writeFile(root, "CLAUDE.md", "## Only Claude\nbody\n");
     writeFile(root, "AGENTS.md", "## Only Codex\nbody\n");
     await runInit({ projectRoot: root, selectAgent: stubSelect });
-    const onlyClaude = matter(readFileSync(join(root, ".agents-doctor/rules/only-claude.md"), "utf8"));
+    const rulesDir = join(root, ".agents-doctor/rules");
+    const onlyClaude = matter(readFileSync(findRule(rulesDir, "-only-claude.md"), "utf8"));
     expect(onlyClaude.data.agents).toEqual(["claude"]);
-    const onlyCodex = matter(readFileSync(join(root, ".agents-doctor/rules/only-codex.md"), "utf8"));
+    const onlyCodex = matter(readFileSync(findRule(rulesDir, "-only-codex.md"), "utf8"));
     expect(onlyCodex.data.agents).toEqual(["codex"]);
   });
 
@@ -81,6 +90,29 @@ describe("runInit", () => {
     expect(existsSync(join(root, ".agents-doctor/skills/refactor-py/SKILL.md"))).toBe(true);
     expect(existsSync(join(root, ".agents-doctor/skills/refactor-py/scripts/run.sh"))).toBe(true);
     expect(existsSync(join(root, ".agents-doctor/commands/review.md"))).toBe(true);
+  });
+
+  it("preserves section order through init → sync", async () => {
+    const root = makeTmpDir();
+    // Headings whose alphabetical order does NOT match discovery order:
+    //   discovery: intro → Banana → Apple → Cherry
+    //   alphabetical of slugs: apple, banana, cherry, intro
+    writeFile(
+      root,
+      "CLAUDE.md",
+      "intro line\n## Banana\nbody B\n## Apple\nbody A\n## Cherry\nbody C\n",
+    );
+    await runInit({ projectRoot: root, selectAgent: stubSelect });
+
+    const compiled = readFileSync(join(root, "CLAUDE.md"), "utf8");
+    const introIdx = compiled.indexOf("intro line");
+    const bananaIdx = compiled.indexOf("## Banana");
+    const appleIdx = compiled.indexOf("## Apple");
+    const cherryIdx = compiled.indexOf("## Cherry");
+    expect(introIdx).toBeGreaterThan(-1);
+    expect(bananaIdx).toBeGreaterThan(introIdx);
+    expect(appleIdx).toBeGreaterThan(bananaIdx);
+    expect(cherryIdx).toBeGreaterThan(appleIdx);
   });
 
   it("runs sync immediately and the result passes check", async () => {

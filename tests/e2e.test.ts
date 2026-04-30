@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { writeFileSync, readFileSync } from "node:fs";
+import { writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { runInit } from "../src/commands/init.js";
 import { runSync } from "../src/commands/sync.js";
@@ -17,7 +17,8 @@ describe("init → sync → check round trip", () => {
 
     // edit a rule
     const rulesDir = join(root, ".agents-doctor/rules");
-    const stylePath = join(rulesDir, "style.md");
+    const styleName = readdirSync(rulesDir).find((f) => f.endsWith("-style.md"))!;
+    const stylePath = join(rulesDir, styleName);
     const before = readFileSync(stylePath, "utf8");
     writeFileSync(stylePath, before.replace("use spaces", "use 2 spaces"));
 

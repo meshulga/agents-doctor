@@ -61,8 +61,11 @@ export async function runInit(opts: InitOptions): Promise<void> {
   // 4. resolve into rule files
   const usedFilenames = new Set<string>();
   const rules: { filename: string; frontmatter: Record<string, unknown>; body: string }[] = [];
+  let ordinal = 0;
   for (const [path, sources] of byPath) {
-    rules.push(...resolveDirectory(path, sources, priority, usedFilenames));
+    const resolved = resolveDirectory(path, sources, priority, usedFilenames, ordinal);
+    rules.push(...resolved.rules);
+    ordinal = resolved.nextOrdinal;
   }
 
   // 5. write SOT
@@ -110,7 +113,8 @@ function resolveDirectory(
   sources: { claude?: string; codex?: string },
   priority: AgentChoice,
   usedFilenames: Set<string>,
-): ResolvedRule[] {
+  startOrdinal: number,
+): { rules: ResolvedRule[]; nextOrdinal: number } {
   const claudeChunks = sources.claude ? splitByH2(sources.claude) : [];
   const codexChunks = sources.codex ? splitByH2(sources.codex) : [];
 
@@ -132,6 +136,7 @@ function resolveDirectory(
   }
 
   const out: ResolvedRule[] = [];
+  let ordinal = startOrdinal;
   for (const key of orderedKeys) {
     const claudeBody = claudeMap.get(key);
     const codexBody = codexMap.get(key);
@@ -154,12 +159,13 @@ function resolveDirectory(
       agents = ["codex"];
     }
 
-    const filename = uniqueFilename(path, key, usedFilenames);
+    const filename = uniqueFilename(path, key, usedFilenames, ordinal);
+    ordinal++;
     const frontmatter: Record<string, unknown> = { agents };
     if (path !== ".") frontmatter.path = path;
     out.push({ filename, frontmatter, body });
   }
-  return out;
+  return { rules: out, nextOrdinal: ordinal };
 }
 
 function slugify(input: string): string {
@@ -171,10 +177,16 @@ function slugify(input: string): string {
   );
 }
 
-function uniqueFilename(path: string, key: string, used: Set<string>): string {
+function uniqueFilename(
+  path: string,
+  key: string,
+  used: Set<string>,
+  ordinal: number,
+): string {
   const headingSlug = key === "__intro__" ? "intro" : slugify(key);
   const pathSlug = path === "." ? "" : slugify(path) + "--";
-  const base = `${pathSlug}${headingSlug}`;
+  const ord = String(ordinal).padStart(3, "0");
+  const base = `${ord}-${pathSlug}${headingSlug}`;
   let candidate = `${base}.md`;
   let n = 2;
   while (used.has(candidate)) {
