@@ -128,10 +128,10 @@ function resolveDirectory(
   const codexChunks = sources.codex ? splitByH2(sources.codex) : [];
 
   // Build a key→chunk map per side, where key is the heading text or `__intro__`.
-  const claudeMap = new Map<string, string>();
-  for (const c of claudeChunks) claudeMap.set(c.heading ?? "__intro__", c.body);
-  const codexMap = new Map<string, string>();
-  for (const c of codexChunks) codexMap.set(c.heading ?? "__intro__", c.body);
+  // Duplicate keys would silently drop one chunk's content, so abort with a clear
+  // message instead — the user can consolidate the duplicates and re-run.
+  const claudeMap = chunksToMap(claudeChunks, path, "CLAUDE.md");
+  const codexMap = chunksToMap(codexChunks, path, "AGENTS.md");
 
   // Preserve original ordering: walk claude then codex chunks in their original order, dedup.
   const orderedKeys: string[] = [];
@@ -175,6 +175,26 @@ function resolveDirectory(
     out.push({ filename, frontmatter, body });
   }
   return { rules: out, nextOrdinal: ordinal };
+}
+
+function chunksToMap(
+  chunks: { heading: string | null; body: string }[],
+  path: string,
+  filename: string,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const c of chunks) {
+    const key = c.heading ?? "__intro__";
+    if (map.has(key)) {
+      const where = path === "." ? filename : `${path}/${filename}`;
+      const label = c.heading === null ? "intro chunk (pre-heading)" : `'## ${c.heading}'`;
+      throw new Error(
+        `${where} has duplicate ${label}; consolidate before running init`,
+      );
+    }
+    map.set(key, c.body);
+  }
+  return map;
 }
 
 function slugify(input: string): string {

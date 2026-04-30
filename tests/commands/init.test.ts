@@ -21,6 +21,34 @@ describe("runInit", () => {
     await expect(runInit({ projectRoot: root, selectAgent: stubSelect })).rejects.toThrow(/already/);
   });
 
+  it("aborts when CLAUDE.md has duplicate ## headings", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "## Style\nA\n## Style\nB\n");
+    await expect(runInit({ projectRoot: root, selectAgent: stubSelect })).rejects.toThrow(
+      /CLAUDE\.md has duplicate '## Style'/,
+    );
+    // .agents-doctor/ should not be partially created.
+    expect(existsSync(join(root, ".agents-doctor"))).toBe(false);
+  });
+
+  it("aborts when AGENTS.md has duplicate intro (pre-heading) content", async () => {
+    const root = makeTmpDir();
+    // Two intro-equivalent chunks would require duplicate heading-less segments,
+    // which splitByH2 collapses by design — so use a duplicate ## heading on AGENTS.md instead.
+    writeFile(root, "AGENTS.md", "## Lint\nfirst\n## Lint\nsecond\n");
+    await expect(runInit({ projectRoot: root, selectAgent: stubSelect })).rejects.toThrow(
+      /AGENTS\.md has duplicate '## Lint'/,
+    );
+  });
+
+  it("aborts when nested CLAUDE.md has duplicate ## headings (path is in the message)", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "src/app/CLAUDE.md", "## A\nfoo\n## A\nbar\n");
+    await expect(runInit({ projectRoot: root, selectAgent: stubSelect })).rejects.toThrow(
+      /src\/app\/CLAUDE\.md has duplicate '## A'/,
+    );
+  });
+
   it("aborts when there are no agent files anywhere", async () => {
     const root = makeTmpDir();
     writeFile(root, "README.md", "nothing useful\n");
