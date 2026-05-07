@@ -78,9 +78,7 @@ describe("agents-doc doctor end-to-end", () => {
     await runInit({ projectRoot: root, selectAgent: async () => "claude" });
 
     const result = await runDoctor({ projectRoot: root });
-    expect(result.buckets.mechanical.filter((i) => i.kind === "drift")).toEqual(
-      [],
-    );
+    expect(result.buckets.mechanical).toEqual([]);
     expect(result.buckets.decisive).toEqual([]);
     expect(result.buckets.generative).toEqual([]);
   });
