@@ -151,11 +151,17 @@ function loadCommands(sotDir: string): Command[] {
   if (!existsSync(dir)) return [];
   const files = readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
   return files.map((filename) => {
+    const name = filename.replace(/\.md$/, "");
+    if (name === "doc-fix") {
+      throw new Error(
+        "'doc-fix' is a reserved command name installed by agents-doc; remove .agents-doc/commands/doc-fix.md",
+      );
+    }
     const raw = readFileSync(join(dir, filename), "utf8");
     const parsed = matter(raw);
     const filtered = whitelist(parsed.data, COMMAND_WHITELIST);
     return {
-      name: filename.replace(/\.md$/, ""),
+      name,
       frontmatter: filtered,
       body: parsed.content,
     };

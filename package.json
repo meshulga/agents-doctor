@@ -1,6 +1,6 @@
 {
   "name": "agents-doc",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Sync and drift-check CLAUDE.md / AGENTS.md across Claude Code and Codex — one source of truth, one CLI.",
   "license": "MIT",
   "keywords": [
@@ -35,10 +35,13 @@
   },
   "files": [
     "bin",
+    "dist/builtin",
     "dist/cli.js",
     "dist/commands",
     "dist/compiler",
+    "dist/doctor",
     "dist/headings.js",
+    "dist/lint",
     "dist/prompt.js",
     "dist/sot",
     "dist/types.js",

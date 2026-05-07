@@ -47,7 +47,7 @@ describe("compileClaude rules", () => {
         rule({ filename: "nested.md", body: "nested\n", frontmatter: { agents: ["*"], priority: "normal", path: "src/app" } }),
       ]),
     );
-    expect([...out.files.keys()].sort()).toEqual(["CLAUDE.md", "src/app/CLAUDE.md"]);
+    expect([...out.files.keys()].sort()).toEqual([".claude/commands/doc-fix.md", "CLAUDE.md", "src/app/CLAUDE.md"]);
   });
 
   it("excludes rules scoped to other agents", () => {
@@ -67,11 +67,11 @@ describe("compileClaude rules", () => {
     expect(content).toBe(HEADER + "line1\nline2\n");
   });
 
-  it("emits nothing when there are no claude-scoped rules", () => {
+  it("emits only built-ins when there are no claude-scoped rules", () => {
     const out = compileClaude(
       sot([rule({ filename: "x.md", body: "x\n", frontmatter: { agents: ["codex"], priority: "normal", path: "." } })]),
     );
-    expect([...out.files.keys()]).toEqual([]);
+    expect([...out.files.keys()]).toEqual([".claude/commands/doc-fix.md"]);
   });
 
   it("includes rules with explicit multi-agent list ['claude','codex']", () => {
