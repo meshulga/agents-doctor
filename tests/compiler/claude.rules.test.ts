@@ -67,7 +67,7 @@ describe("compileClaude rules", () => {
     expect(content).toBe(HEADER + "line1\nline2\n");
   });
 
-  it("emits nothing when there are no claude-scoped rules", () => {
+  it("emits only built-ins when there are no claude-scoped rules", () => {
     const out = compileClaude(
       sot([rule({ filename: "x.md", body: "x\n", frontmatter: { agents: ["codex"], priority: "normal", path: "." } })]),
     );
