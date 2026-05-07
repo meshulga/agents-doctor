@@ -1,7 +1,7 @@
 {
   "name": "agents-doc",
   "version": "0.1.0",
-  "description": "Single source of truth and drift check for AI coding agent configs (Claude Code + Codex).",
+  "description": "Sync and drift-check CLAUDE.md / AGENTS.md across Claude Code and Codex — one source of truth, one CLI.",
   "license": "MIT",
   "keywords": [
     "ai",
@@ -12,7 +12,14 @@
     "llm",
     "config",
     "sync",
-    "drift"
+    "drift",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "cli",
+    "linter",
+    "validator",
+    "markdown",
+    "config-drift"
   ],
   "repository": {
     "type": "git",
