@@ -10,15 +10,10 @@ import { makeTmpDir, writeFile } from "./helpers/tmp.js";
 describe("agents-doc doctor end-to-end", () => {
   it("classifies drift and lint issues and writes the todo file", async () => {
     const root = makeTmpDir();
-    // Seed a project with one shared rule that contains a vague phrase.
+    // Seed a single-agent project so the only decisive lint is the vague phrase.
     writeFile(
       root,
       "CLAUDE.md",
-      "# Project\n\n## Style\n\n- use appropriate indentation\n",
-    );
-    writeFile(
-      root,
-      "AGENTS.md",
       "# Project\n\n## Style\n\n- use appropriate indentation\n",
     );
     await runInit({ projectRoot: root, selectAgent: async () => "claude" });
@@ -31,18 +26,19 @@ describe("agents-doc doctor end-to-end", () => {
     const result = await runDoctor({ projectRoot: root });
 
     // 1 drift mismatch on CLAUDE.md -> mechanical bucket.
-    expect(result.buckets.mechanical.some((i) => i.kind === "drift")).toBe(
-      true,
-    );
+    expect(result.buckets.mechanical).toHaveLength(1);
+    expect(result.buckets.mechanical[0]).toMatchObject({
+      kind: "drift",
+      source: { kind: "mismatch", path: "CLAUDE.md" },
+    });
 
-    // "appropriate" -> decisive bucket.
-    const decisive = result.buckets.decisive;
-    expect(decisive.length).toBeGreaterThanOrEqual(1);
+    // "appropriate" -> the only decisive lint issue.
     expect(
-      decisive.some(
-        (i) => i.kind === "lint" && i.source.category === "vague_phrasing",
+      result.buckets.decisive.map((i) =>
+        i.kind === "lint" ? i.source.category : i.kind
       ),
-    ).toBe(true);
+    ).toEqual(["vague_phrasing"]);
+    expect(result.buckets.generative).toEqual([]);
 
     // Todo file written with the decisive entry; not the mechanical drift.
     expect(existsSync(result.todoPath)).toBe(true);
@@ -50,6 +46,7 @@ describe("agents-doc doctor end-to-end", () => {
     expect(todo).toContain("## Decisive");
     expect(todo).toContain("vague_phrasing");
     expect(todo).not.toContain("CLAUDE.md"); // drift never appears in todo
+    expect(todo).not.toContain("**drift**");
 
     const originalInitCwd = process.env.INIT_CWD;
     process.env.INIT_CWD = root;
@@ -71,6 +68,8 @@ describe("agents-doc doctor end-to-end", () => {
 
   it("returns ok when SOT is clean and in sync", async () => {
     const root = makeTmpDir();
+    // Keep this single-agent so init emits explicit `agents: [claude]` rules,
+    // avoiding wildcard/no-globs lint that is intentionally not part of this case.
     writeFile(
       root,
       "CLAUDE.md",
