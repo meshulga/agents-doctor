@@ -215,7 +215,7 @@ describe("runInit", () => {
     const result = await runInit({ projectRoot: root, selectAgent: stubSelect });
     // 3 chunks (intro, A, B), so 3 rules emitted.
     expect(result.rulesEmitted).toBe(3);
-    // sync should write CLAUDE.md and AGENTS.md.
-    expect(result.filesWritten.sort()).toEqual(["AGENTS.md", "CLAUDE.md"]);
+    // sync should write CLAUDE.md, AGENTS.md, and the built-in Claude command.
+    expect(result.filesWritten.sort()).toEqual([".claude/commands/doc-fix.md", "AGENTS.md", "CLAUDE.md"]);
   });
 });
