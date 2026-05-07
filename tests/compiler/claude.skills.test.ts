@@ -10,7 +10,7 @@ function sot(): Sot {
       {
         name: "refactor-py",
         files: [
-          { relativePath: "SKILL.md", bytes: Buffer.from("---\nname: refactor-py\ngenerated_by: agents-doctor\n---\n# body\n") },
+          { relativePath: "SKILL.md", bytes: Buffer.from("---\nname: refactor-py\ngenerated_by: agents-doc\n---\n# body\n") },
           { relativePath: "scripts/run.sh", bytes: Buffer.from("echo hi\n") },
           { relativePath: "assets/img.bin", bytes: Buffer.from([0, 1, 2, 3]) },
         ],

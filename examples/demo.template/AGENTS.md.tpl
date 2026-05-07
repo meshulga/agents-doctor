@@ -1,6 +1,6 @@
 # Project: Demo
 
-A sample project used to demonstrate `agents-doctor`. The pre-`##` content
+A sample project used to demonstrate `agents-doc`. The pre-`##` content
 above is identical between CLAUDE.md and AGENTS.md, so init merges it into
 a single rule scoped to all agents.
 

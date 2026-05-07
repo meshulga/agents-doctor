@@ -25,8 +25,8 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const root = opts.projectRoot;
   const select = opts.selectAgent ?? interactiveSelectAgent;
 
-  if (existsSync(join(root, ".agents-doctor"))) {
-    throw new Error(`.agents-doctor/ already exists at ${root}; refusing to overwrite`);
+  if (existsSync(join(root, ".agents-doc"))) {
+    throw new Error(`.agents-doc/ already exists at ${root}; refusing to overwrite`);
   }
 
   // 1. discover. Skip .claude/ — its CLAUDE.md (e.g. inside a skill folder
@@ -77,19 +77,19 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   }
 
   // 5. write SOT
-  mkdirSync(join(root, ".agents-doctor/rules"), { recursive: true });
+  mkdirSync(join(root, ".agents-doc/rules"), { recursive: true });
   for (const r of rules) {
     const body = r.body.replace(/\r\n/g, "\n");
     writeFileSync(
-      join(root, ".agents-doctor/rules", r.filename),
+      join(root, ".agents-doc/rules", r.filename),
       serializeMarkdown(r.frontmatter, body),
     );
   }
   if (hasSkills) {
-    cpSync(join(root, ".claude/skills"), join(root, ".agents-doctor/skills"), { recursive: true });
+    cpSync(join(root, ".claude/skills"), join(root, ".agents-doc/skills"), { recursive: true });
   }
   if (hasCommands) {
-    cpSync(join(root, ".claude/commands"), join(root, ".agents-doctor/commands"), { recursive: true });
+    cpSync(join(root, ".claude/commands"), join(root, ".agents-doc/commands"), { recursive: true });
   }
 
   const enabledAgents: AgentChoice[] = [];
@@ -97,7 +97,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   if (hasCodex) enabledAgents.push("codex");
   // enabledAgents is guaranteed non-empty by the earlier `no agent files` throw.
   writeFileSync(
-    join(root, ".agents-doctor/config.yaml"),
+    join(root, ".agents-doc/config.yaml"),
     yaml.dump({ agents: enabledAgents }, { lineWidth: -1 }),
   );
 

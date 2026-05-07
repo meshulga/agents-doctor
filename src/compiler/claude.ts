@@ -25,7 +25,7 @@ export function compileClaude(sot: Sot): CompiledOutput {
   }
 
   for (const cmd of sot.commands) {
-    const fm = { ...cmd.frontmatter, generated_by: "agents-doctor" };
+    const fm = { ...cmd.frontmatter, generated_by: "agents-doc" };
     const body = cmd.body.replace(/\r\n/g, "\n");
     const md = serializeMarkdown(fm, body);
     files.set(`.claude/commands/${cmd.name}.md`, Buffer.from(md, "utf8"));

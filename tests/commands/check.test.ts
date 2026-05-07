@@ -7,8 +7,8 @@ import { makeTmpDir, writeFile } from "../helpers/tmp.js";
 
 async function setupSyncedProject(): Promise<string> {
   const root = makeTmpDir();
-  writeFile(root, ".agents-doctor/config.yaml", "agents: [claude, codex]\n");
-  writeFile(root, ".agents-doctor/rules/general.md", "---\n---\nbody\n");
+  writeFile(root, ".agents-doc/config.yaml", "agents: [claude, codex]\n");
+  writeFile(root, ".agents-doc/rules/general.md", "---\n---\nbody\n");
   await runSync({ projectRoot: root });
   return root;
 }
@@ -45,8 +45,8 @@ describe("runCheck", () => {
 
   it("flags untracked file inside .claude/commands/ as extra", async () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
-    writeFile(root, ".agents-doctor/commands/review.md", "---\ndescription: r\n---\nbody\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/commands/review.md", "---\ndescription: r\n---\nbody\n");
     await runSync({ projectRoot: root });
     writeFile(root, ".claude/commands/stray.md", "stray\n");
     const r = await runCheck({ projectRoot: root });
@@ -64,10 +64,10 @@ describe("runCheck", () => {
 
   it("does not flag missing AGENTS.md when only claude rules exist at that path", async () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude, codex]\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude, codex]\n");
     writeFile(
       root,
-      ".agents-doctor/rules/c.md",
+      ".agents-doc/rules/c.md",
       "---\nagents: [claude]\n---\nclaude\n",
     );
     await runSync({ projectRoot: root });
@@ -77,8 +77,8 @@ describe("runCheck", () => {
 
   it("flags a stray CLAUDE.md inside .claude/skills/ exactly once", async () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
-    writeFile(root, ".agents-doctor/rules/r.md", "---\n---\nbody\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/rules/r.md", "---\n---\nbody\n");
     await runSync({ projectRoot: root });
     // Stray file matches BOTH the basename branch and the `.claude/skills/`
     // prefix branch. Without the dedupe it would emit two `extra` issues.
@@ -92,10 +92,10 @@ describe("runCheck", () => {
 
   it("round-trips clean when rule path uses ./ prefix or trailing slash", async () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
     writeFile(
       root,
-      ".agents-doctor/rules/nested.md",
+      ".agents-doc/rules/nested.md",
       "---\npath: ./src/app/\n---\nbody\n",
     );
     await runSync({ projectRoot: root });

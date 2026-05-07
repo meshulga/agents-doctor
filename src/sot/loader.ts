@@ -29,9 +29,9 @@ const COMMAND_WHITELIST = new Set([
 ]);
 
 export function loadSot(projectRoot: string): Sot {
-  const sotDir = join(projectRoot, ".agents-doctor");
+  const sotDir = join(projectRoot, ".agents-doc");
   if (!existsSync(sotDir)) {
-    throw new Error(`.agents-doctor/ not found at ${projectRoot}`);
+    throw new Error(`.agents-doc/ not found at ${projectRoot}`);
   }
 
   const config = loadConfig(sotDir);
@@ -142,7 +142,7 @@ function transformSkillMd(absPath: string): string {
   const raw = readFileSync(absPath, "utf8");
   const parsed = matter(raw);
   const filtered = whitelist(parsed.data, SKILL_WHITELIST);
-  filtered.generated_by = "agents-doctor";
+  filtered.generated_by = "agents-doc";
   return serializeMarkdown(filtered, parsed.content);
 }
 

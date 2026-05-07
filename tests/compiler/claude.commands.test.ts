@@ -24,7 +24,7 @@ describe("compileClaude commands", () => {
     expect(file).toMatch(/^---\n/);
     expect(file).toContain("description: Review a PR");
     expect(file).toContain("allowed-tools:");
-    expect(file).toContain("generated_by: agents-doctor");
+    expect(file).toContain("generated_by: agents-doc");
     expect(file).toContain("/review body");
   });
 });

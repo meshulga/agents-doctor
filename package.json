@@ -1,5 +1,5 @@
 {
-  "name": "agents-doctor",
+  "name": "agents-doc",
   "version": "0.1.0",
   "description": "Single source of truth and drift check for AI coding agent configs (Claude Code + Codex).",
   "license": "MIT",
@@ -16,15 +16,15 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/meshulga/agents-doctor.git"
+    "url": "git+https://github.com/meshulga/agents-doc.git"
   },
-  "homepage": "https://github.com/meshulga/agents-doctor#readme",
+  "homepage": "https://github.com/meshulga/agents-doc#readme",
   "bugs": {
-    "url": "https://github.com/meshulga/agents-doctor/issues"
+    "url": "https://github.com/meshulga/agents-doc/issues"
   },
   "type": "module",
   "bin": {
-    "agents-doctor": "bin/agents-doctor.js"
+    "agents-doc": "bin/agents-doc.js"
   },
   "files": [
     "bin",

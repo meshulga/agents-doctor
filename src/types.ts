@@ -8,7 +8,7 @@ export interface RuleFrontmatter {
 }
 
 export interface Rule {
-  filename: string;          // basename inside .agents-doctor/rules/
+  filename: string;          // basename inside .agents-doc/rules/
   frontmatter: RuleFrontmatter;
   body: string;              // post-frontmatter content (no trailing trim)
 }

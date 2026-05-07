@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 export function makeTmpDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "agents-doctor-"));
+  const dir = mkdtempSync(join(tmpdir(), "agents-doc-"));
   created.push(dir);
   return dir;
 }

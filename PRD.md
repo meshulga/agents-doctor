@@ -1,4 +1,4 @@
-# agents-doctor — Product Requirements Document
+# agents-doc — Product Requirements Document
 
 **Status:** Draft v0.3
 **Owner:** TBD
@@ -9,7 +9,7 @@
 
 ## 1. Summary
 
-`agents-doctor` is an open-source CLI that gives teams using multiple AI coding agents (Claude Code, Codex) one place to author and synchronize the rules, skills, and slash commands those agents read.
+`agents-doc` is an open-source CLI that gives teams using multiple AI coding agents (Claude Code, Codex) one place to author and synchronize the rules, skills, and slash commands those agents read.
 
 It does three things:
 
@@ -19,7 +19,7 @@ It does three things:
 
 Distributed via `npm`, written in TypeScript. v1 targets Claude Code and Codex.
 
-v1 is the foundation. The headline feature for v2 is an **AI-fix loop**: a slash command (`/doctor-fix`) that the user runs from inside their AI agent to resolve judgment-call issues — vague rules, conflicts, missing skill descriptions — that mechanical tools cannot fix. Sync and check exist to make that loop possible; they are infrastructure, not the product.
+v1 is the foundation. The headline feature for v2 is an **AI-fix loop**: a slash command (`/doc-fix`) that the user runs from inside their AI agent to resolve judgment-call issues — vague rules, conflicts, missing skill descriptions — that mechanical tools cannot fix. Sync and check exist to make that loop possible; they are infrastructure, not the product.
 
 ## 2. Problem
 
@@ -70,13 +70,13 @@ Not a target: developers who use exactly one AI agent. They have no sync problem
 |Ruler            |Yes    |No         |Many       |
 |agnix            |No     |Lint only  |12+        |
 |cclint           |No     |Lint only  |Claude only|
-|**agents-doctor**|**Yes**|**Yes**    |**2 in v1**|
+|**agents-doc**|**Yes**|**Yes**    |**2 in v1**|
 
 Sync + drift check together is the wedge. v1 stays narrowly focused on two agents.
 
 ## 6. Core concepts
 
-- **Source of truth (SOT).** A `.agents-doctor/` directory containing `config.yaml`, modular markdown rules, skill folders, and slash commands. The only thing humans hand-edit.
+- **Source of truth (SOT).** A `.agents-doc/` directory containing `config.yaml`, modular markdown rules, skill folders, and slash commands. The only thing humans hand-edit.
 - **Generated files.** Every agent-specific file (`CLAUDE.md`, `AGENTS.md`, `.claude/skills/*`, `.claude/commands/*`) is regenerated from the SOT. Tracked in git but treated as derived.
 - **Drift.** A generated file's on-disk content does not match what compiling the SOT would produce, OR an agent directory contains a file that has no SOT origin (extra).
 
@@ -84,8 +84,8 @@ Sync + drift check together is the wedge. v1 stays narrowly focused on two agent
 
 ### 7.1 Init (brownfield onboarding)
 
-1. User runs `agents-doctor init` in a repo that already has `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, and/or `.claude/commands/`.
-2. If `.agents-doctor/` already exists, the command aborts with a non-zero exit and a clear error. (No `--force` in v1.)
+1. User runs `agents-doc init` in a repo that already has `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, and/or `.claude/commands/`.
+2. If `.agents-doc/` already exists, the command aborts with a non-zero exit and a clear error. (No `--force` in v1.)
 3. Tool walks the project tree, respecting `.gitignore`, and discovers every `CLAUDE.md` and `AGENTS.md` (root and nested), plus `.claude/skills/` and `.claude/commands/` at the project root.
 4. Tool prompts the user for a **priority agent** (`claude` or `codex`). The priority agent wins all conflicts.
 5. For each `(path, CLAUDE.md, AGENTS.md)` triple discovered:
@@ -94,22 +94,22 @@ Sync + drift check together is the wedge. v1 stays narrowly focused on two agent
     - Chunks present in only one file are emitted as a rule with `agents: [<that-agent>]`.
     - Chunks present in both but with different content are resolved in favor of the priority agent. The losing chunk is dropped.
     - All resulting rules carry `path:` matching the directory they were discovered in.
-6. Skills (each `.claude/skills/<name>/`) and commands (each `.claude/commands/<name>.md`) are copied into `.agents-doctor/skills/` and `.agents-doctor/commands/` verbatim. (These have no Codex equivalent, so no conflict resolution applies.)
-7. Tool writes `.agents-doctor/config.yaml` with both agents enabled.
+6. Skills (each `.claude/skills/<name>/`) and commands (each `.claude/commands/<name>.md`) are copied into `.agents-doc/skills/` and `.agents-doc/commands/` verbatim. (These have no Codex equivalent, so no conflict resolution applies.)
+7. Tool writes `.agents-doc/config.yaml` with both agents enabled.
 8. Tool runs `sync` automatically. The existing on-disk agent files are overwritten with the compiled output. The user reviews the resulting `git diff` and commits.
 
 The existing agent files are not deleted or backed up by `init` itself; sync's overwrite is the next step, and git is the safety net.
 
 ### 7.2 Sync
 
-1. User edits files in `.agents-doctor/`.
-2. User runs `agents-doctor sync`.
+1. User edits files in `.agents-doc/`.
+2. User runs `agents-doc sync`.
 3. Tool compiles the SOT and writes every agent file to disk, overwriting existing content. Each generated file starts with a header comment marking it as generated.
 4. User reviews `git diff` and commits.
 
 ### 7.3 Check
 
-1. User runs `agents-doctor check` (locally or in CI).
+1. User runs `agents-doc check` (locally or in CI).
 2. Tool compiles the SOT in memory and compares against on-disk agent files.
 3. For each tracked agent path: missing, content mismatch, or matched.
 4. For each agent directory (`.claude/skills/`, `.claude/commands/`): file present on disk with no SOT origin → flagged as extra.
@@ -124,7 +124,7 @@ Direct edits are detected by `check` as drift. The user must either re-run `sync
 ### 8.1 Source-of-truth structure
 
 ```
-.agents-doctor/
+.agents-doc/
 ├── config.yaml           # agents: [claude, codex]
 ├── rules/                # flat directory of .md files w/ frontmatter
 │   ├── general.md        #   path defaults to "."
@@ -172,10 +172,10 @@ path: src/apps/todo/components
 - Each agent has a pluggable compiler module.
 - **Rules → CLAUDE.md / AGENTS.md.** For each unique `path` value in scope for an agent, the compiler concatenates matching rules (ordered by `priority` then filename) and writes a single output file at `<path>/<AGENT_FILE>` (`CLAUDE.md` for Claude, `AGENTS.md` for Codex). Each rule's frontmatter is **stripped entirely** before concatenation; only the rule body reaches the compiled output. The compiled file starts with the literal header:
   ```
-  <!-- Generated by agents-doctor; do not edit. Source: .agents-doctor/ -->
+  <!-- Generated by agents-doc; do not edit. Source: .agents-doc/ -->
   ```
-- **Skills (Claude only).** Each skill folder under `.agents-doctor/skills/<name>/` is copied **recursively, verbatim** to `.claude/skills/<name>/`. Helper scripts, references, and supporting files travel with the skill. The skill's `SKILL.md` frontmatter passes through a whitelist (`name`, `description`) plus an injected `generated_by: agents-doctor` field; non-whitelisted keys are dropped. Other files in the skill folder are copied byte-for-byte.
-- **Commands (Claude only).** Each `.agents-doctor/commands/<name>.md` is copied to `.claude/commands/<name>.md`. Frontmatter passes through a whitelist (`description`, `allowed-tools`, `argument-hint`, `model`) plus the injected `generated_by` field; non-whitelisted keys are dropped.
+- **Skills (Claude only).** Each skill folder under `.agents-doc/skills/<name>/` is copied **recursively, verbatim** to `.claude/skills/<name>/`. Helper scripts, references, and supporting files travel with the skill. The skill's `SKILL.md` frontmatter passes through a whitelist (`name`, `description`) plus an injected `generated_by: agents-doc` field; non-whitelisted keys are dropped. Other files in the skill folder are copied byte-for-byte.
+- **Commands (Claude only).** Each `.agents-doc/commands/<name>.md` is copied to `.claude/commands/<name>.md`. Frontmatter passes through a whitelist (`description`, `allowed-tools`, `argument-hint`, `model`) plus the injected `generated_by` field; non-whitelisted keys are dropped.
 - **Line endings.** All compiled output is written with LF line endings regardless of host OS, so `check` does not flag spurious drift on mixed-OS teams.
 - **Overwrite.** Sync overwrites existing files unconditionally. No `.bak`. Git is the safety net.
 
@@ -190,7 +190,7 @@ path: src/apps/todo/components
 
 ### 8.5 Init
 
-- Aborts non-zero if `.agents-doctor/` exists.
+- Aborts non-zero if `.agents-doc/` exists.
 - Walks the project tree, honoring `.gitignore` and skipping common heavy paths (`.git/`, `node_modules/`, etc.) by default.
 - Discovers every `CLAUDE.md` and `AGENTS.md` at any depth, plus `.claude/skills/` and `.claude/commands/` at the project root.
 - Prompts interactively for a priority agent (`claude` | `codex`) used to resolve conflicts.
@@ -201,11 +201,11 @@ path: src/apps/todo/components
 
 |Command               |Purpose                                                          |
 |----------------------|-----------------------------------------------------------------|
-|`agents-doctor init`  |Bootstrap `.agents-doctor/` from existing agent files.            |
-|`agents-doctor sync`  |Regenerate all agent configs from the source of truth.            |
-|`agents-doctor check` |Verify on-disk agent files match the source of truth.             |
+|`agents-doc init`  |Bootstrap `.agents-doc/` from existing agent files.            |
+|`agents-doc sync`  |Regenerate all agent configs from the source of truth.            |
+|`agents-doc check` |Verify on-disk agent files match the source of truth.             |
 
-No flags in v1. No `--ci`, `--profile`, `--force`, `--check`. CI integration is just `agents-doctor check` in a job step.
+No flags in v1. No `--ci`, `--profile`, `--force`, `--check`. CI integration is just `agents-doc check` in a job step.
 
 ## 9. Supported agents (v1)
 
@@ -241,9 +241,9 @@ Expansion roadmap (post-v1, in order of likely demand): Cursor, Windsurf, Gemini
 
 ## 13. Roadmap beyond v1
 
-v1 ships only the plumbing. The features that make agents-doctor distinct from `rulesync` and `Ruler` arrive in v2 and v3.
+v1 ships only the plumbing. The features that make agents-doc distinct from `rulesync` and `Ruler` arrive in v2 and v3.
 
-- **v2 — AI-fix loop (headline feature).** A new `/doctor-fix` slash command, installed by `agents-doctor` into the user's Claude Code and Codex commands directories. Health checks classify issues into mechanical, decisive, and generative buckets and write the non-mechanical ones to `.agents-doctor/.todo.md`. The user runs `/doctor-fix` inside their agent; the agent reads the todo file, edits the SOT, runs `sync` and `check`, and reports what's left. The agent supplies judgment; agents-doctor supplies structure. This is the wedge.
+- **v2 — AI-fix loop (headline feature).** A new `/doc-fix` slash command, installed by `agents-doc` into the user's Claude Code and Codex commands directories. Health checks classify issues into mechanical, decisive, and generative buckets and write the non-mechanical ones to `.agents-doc/.todo.md`. The user runs `/doc-fix` inside their agent; the agent reads the todo file, edits the SOT, runs `sync` and `check`, and reports what's left. The agent supplies judgment; agents-doc supplies structure. This is the wedge.
 - **v2 — Anti-pattern lint.** Rule-level static analysis: vague phrasing, contradictions, dead `@references`, missing required frontmatter, instruction-count blowouts, over-broad globs. Necessary feed for the AI-fix loop.
 - **v3 — TUI.** Three tabs: rules × agents matrix, hierarchical browser, health dashboard. Read-only browse over the SOT and check results.
 - **Later.** More agents (Cursor, Windsurf, Gemini CLI, Copilot, Cline, Aider). MCP server management. Override files. Profiles. Semantic drift detection. Best-practices registry.

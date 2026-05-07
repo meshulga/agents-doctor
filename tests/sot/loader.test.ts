@@ -5,15 +5,15 @@ import { makeTmpDir, writeFile } from "../helpers/tmp.js";
 describe("loadSot", () => {
   it("loads config + rules with defaults applied", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude, codex]\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude, codex]\n");
     writeFile(
       root,
-      ".agents-doctor/rules/general.md",
+      ".agents-doc/rules/general.md",
       "---\n---\nbody\n",
     );
     writeFile(
       root,
-      ".agents-doctor/rules/claude-only.md",
+      ".agents-doc/rules/claude-only.md",
       "---\nagents: [claude]\npriority: high\npath: src/app\n---\nclaude body\n",
     );
 
@@ -33,13 +33,13 @@ describe("loadSot", () => {
 
   it("loads skills recursively, transforming SKILL.md frontmatter", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
     writeFile(
       root,
-      ".agents-doctor/skills/refactor-py/SKILL.md",
+      ".agents-doc/skills/refactor-py/SKILL.md",
       "---\nname: refactor-py\ndescription: Refactor python\nsecret: drop-me\n---\n# Refactor\n",
     );
-    writeFile(root, ".agents-doctor/skills/refactor-py/scripts/run.sh", "echo hi\n");
+    writeFile(root, ".agents-doc/skills/refactor-py/scripts/run.sh", "echo hi\n");
 
     const sot = loadSot(root);
     expect(sot.skills).toHaveLength(1);
@@ -55,17 +55,17 @@ describe("loadSot", () => {
     expect(text).toMatch(/^---\n/);
     expect(text).toContain("name: refactor-py");
     expect(text).toContain("description: Refactor python");
-    expect(text).toContain("generated_by: agents-doctor");
+    expect(text).toContain("generated_by: agents-doc");
     expect(text).not.toContain("secret");
     expect(text).toContain("# Refactor");
   });
 
   it("loads slash commands with whitelisted frontmatter", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
     writeFile(
       root,
-      ".agents-doctor/commands/review.md",
+      ".agents-doc/commands/review.md",
       "---\ndescription: Review PR\nallowed-tools: [Read]\nsecret: drop\n---\n/review body\n",
     );
 
@@ -80,50 +80,50 @@ describe("loadSot", () => {
     expect(cmd.body).toBe("/review body\n");
   });
 
-  it("throws if .agents-doctor/ is missing", () => {
+  it("throws if .agents-doc/ is missing", () => {
     const root = makeTmpDir();
-    expect(() => loadSot(root)).toThrow(/\.agents-doctor/);
+    expect(() => loadSot(root)).toThrow(/\.agents-doc/);
   });
 
   it("rejects empty config.yaml agents list", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: []\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: []\n");
     expect(() => loadSot(root)).toThrow(/non-empty agents/);
   });
 
   it("rejects unknown agent in config.yaml", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [gemini]\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [gemini]\n");
     expect(() => loadSot(root)).toThrow(/unknown agent/);
   });
 
   it("rejects rule with non-array agents field", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
-    writeFile(root, ".agents-doctor/rules/bad.md", "---\nagents: claude\n---\nbody\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/rules/bad.md", "---\nagents: claude\n---\nbody\n");
     expect(() => loadSot(root)).toThrow(/agents must be an array/);
   });
 
   it("rejects rule with unknown priority value", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
-    writeFile(root, ".agents-doctor/rules/bad.md", "---\npriority: medium\n---\nbody\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/rules/bad.md", "---\npriority: medium\n---\nbody\n");
     expect(() => loadSot(root)).toThrow(/priority must be high\|normal\|low/);
   });
 
   it("rejects rule with non-array globs", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
-    writeFile(root, ".agents-doctor/rules/bad.md", "---\nglobs: '*.ts'\n---\nbody\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/rules/bad.md", "---\nglobs: '*.ts'\n---\nbody\n");
     expect(() => loadSot(root)).toThrow(/globs must be an array/);
   });
 
   it("normalizes rule path frontmatter (strips leading ./, trailing /, blank → .)", () => {
     const root = makeTmpDir();
-    writeFile(root, ".agents-doctor/config.yaml", "agents: [claude]\n");
-    writeFile(root, ".agents-doctor/rules/a.md", "---\npath: ./src/app/\n---\nbody\n");
-    writeFile(root, ".agents-doctor/rules/b.md", "---\npath: src/app\n---\nbody\n");
-    writeFile(root, ".agents-doctor/rules/c.md", "---\npath: ./\n---\nbody\n");
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
+    writeFile(root, ".agents-doc/rules/a.md", "---\npath: ./src/app/\n---\nbody\n");
+    writeFile(root, ".agents-doc/rules/b.md", "---\npath: src/app\n---\nbody\n");
+    writeFile(root, ".agents-doc/rules/c.md", "---\npath: ./\n---\nbody\n");
 
     const sot = loadSot(root);
     const a = sot.rules.find((r) => r.filename === "a.md")!;

@@ -32,7 +32,7 @@ export async function main(argv: string[]): Promise<void> {
       // After an interactive prompt the user's answer doesn't end with a
       // newline, so lead with one to keep the summary on its own line.
       console.log(
-        `\n${ui.ok(`Initialized .agents-doctor/ with ${result.rulesEmitted} rule(s).`)}`,
+        `\n${ui.ok(`Initialized .agents-doc/ with ${result.rulesEmitted} rule(s).`)}`,
       );
       printWritten(`Wrote ${result.filesWritten.length} file(s)`, result.filesWritten);
       return;
@@ -98,12 +98,12 @@ function readPackageVersion(): string {
 function printHelp(): void {
   console.log(
     [
-      "agents-doctor — sync and verify AI coding agent configs",
+      "agents-doc — sync and verify AI coding agent configs",
       "",
       "Usage:",
-      "  agents-doctor init    Bootstrap .agents-doctor/ from existing agent files",
-      "  agents-doctor sync    Regenerate all agent configs from .agents-doctor/",
-      "  agents-doctor check   Verify on-disk agent files match .agents-doctor/",
+      "  agents-doc init    Bootstrap .agents-doc/ from existing agent files",
+      "  agents-doc sync    Regenerate all agent configs from .agents-doc/",
+      "  agents-doc check   Verify on-disk agent files match .agents-doc/",
     ].join("\n"),
   );
 }

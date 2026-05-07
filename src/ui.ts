@@ -23,7 +23,7 @@ export const ui = {
 // ────────────────────────────────────────────────────────────
 
 const FOLDER_ICONS: Record<string, string> = {
-  ".agents-doctor": "🗂",
+  ".agents-doc": "🗂",
   ".claude": "🟧",
   rules: "📋",
   skills: "🛠️ ",

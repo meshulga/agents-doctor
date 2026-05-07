@@ -29,7 +29,7 @@ describe("CLI argv dispatch", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     await main(["--help"]);
     const out = log.mock.calls.map((c) => c[0]).join("\n");
-    expect(out).toContain("agents-doctor");
+    expect(out).toContain("agents-doc");
     expect(out).toContain("init");
     expect(out).toContain("sync");
     expect(out).toContain("check");
@@ -45,12 +45,12 @@ describe("CLI argv dispatch", () => {
     });
 
     it("sync targets INIT_CWD instead of process.cwd() when set", async () => {
-      // Project lives in tmp; cwd stays in the agents-doctor repo (where
-      // there is no .agents-doctor/), so a successful sync proves we did
+      // Project lives in tmp; cwd stays in the agents-doc repo (where
+      // there is no .agents-doc/), so a successful sync proves we did
       // pick up INIT_CWD.
       const fixture = makeTmpDir();
-      writeFile(fixture, ".agents-doctor/config.yaml", "agents: [claude]\n");
-      writeFile(fixture, ".agents-doctor/rules/r.md", "---\n---\nbody\n");
+      writeFile(fixture, ".agents-doc/config.yaml", "agents: [claude]\n");
+      writeFile(fixture, ".agents-doc/rules/r.md", "---\n---\nbody\n");
       process.env.INIT_CWD = fixture;
 
       const log = vi.spyOn(console, "log").mockImplementation(() => {});

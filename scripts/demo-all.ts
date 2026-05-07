@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs the full agents-doctor demo loop end-to-end: reset → init → check →
+// Runs the full agents-doc demo loop end-to-end: reset → init → check →
 // drift → sync → check. Intended to be invoked via `npm run demo`.
 
 import { spawnSync, type SpawnSyncOptions } from "node:child_process";
@@ -51,21 +51,21 @@ function filesUnder(root: string, dir: string): string[] {
 step(1, "Reset examples/demo from the brownfield template");
 run("node", [join(repoRoot, "scripts/demo-reset.mjs")]);
 
-step(2, "Brownfield project tree (no .agents-doctor/ yet)");
+step(2, "Brownfield project tree (no .agents-doc/ yet)");
 tree(demo);
 
 step(3, "Run init — picks 'claude' as the priority agent (via env var)");
 run("npm", ["--prefix", repoRoot, "run", "cli:demo", "--silent", "--", "init"], {
-  env: { ...process.env, AGENTS_DOCTOR_PRIORITY: "claude" },
+  env: { ...process.env, AGENTS_DOC_PRIORITY: "claude" },
 });
 
 step(4, "Project tree after init");
 tree(demo);
 
-step(5, "Generated rule files in .agents-doctor/rules/");
-for (const f of readdirSync(join(demo, ".agents-doctor/rules")).sort()) {
+step(5, "Generated rule files in .agents-doc/rules/");
+for (const f of readdirSync(join(demo, ".agents-doc/rules")).sort()) {
   console.log(`${DIM}--- ${f} ---${RESET}`);
-  console.log(readFileSync(join(demo, ".agents-doctor/rules", f), "utf8"));
+  console.log(readFileSync(join(demo, ".agents-doc/rules", f), "utf8"));
 }
 
 step(6, "Generated CLAUDE.md (root)");
@@ -78,8 +78,8 @@ step(8, "Run check — should be clean");
 run("npm", ["--prefix", repoRoot, "run", "cli:demo", "--silent", "--", "check"]);
 
 step(9, "Demonstrate drift: tamper with a rule body");
-const stylePath = readdirSync(join(demo, ".agents-doctor/rules"))
-  .map((f) => join(demo, ".agents-doctor/rules", f))
+const stylePath = readdirSync(join(demo, ".agents-doc/rules"))
+  .map((f) => join(demo, ".agents-doc/rules", f))
   .find((p) => p.endsWith("-code-style.md"));
 if (!stylePath) {
   console.error("could not find code-style rule");

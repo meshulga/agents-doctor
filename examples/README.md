@@ -24,9 +24,9 @@ fixture, not your real project.
 ```
 npm run demo            # full loop: reset → init → check → drift → sync → check
 npm run demo:reset      # restore working copy from template
-npm run demo:init       # bootstrap .agents-doctor/ from agent files
-npm run demo:sync       # regenerate agent configs from .agents-doctor/
-npm run demo:check      # verify on-disk agent files match .agents-doctor/
+npm run demo:init       # bootstrap .agents-doc/ from agent files
+npm run demo:sync       # regenerate agent configs from .agents-doc/
+npm run demo:check      # verify on-disk agent files match .agents-doc/
 ```
 
 ## What the template covers
@@ -49,7 +49,7 @@ npm run demo:check      # verify on-disk agent files match .agents-doctor/
 ### Edit a rule and re-sync
 
 ```bash
-sed -i.bak 's/2-space/4-space/' .agents-doctor/rules/001-code-style.md && rm -f .agents-doctor/rules/001-code-style.md.bak
+sed -i.bak 's/2-space/4-space/' .agents-doc/rules/001-code-style.md && rm -f .agents-doc/rules/001-code-style.md.bak
 npm run demo:check        # mismatch on CLAUDE.md
 npm run demo:sync         # re-emits both files
 npm run demo:check        # ok again

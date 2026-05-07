@@ -16,7 +16,7 @@ describe("init → sync → check round trip", () => {
     expect(r1.ok).toBe(true);
 
     // edit a rule
-    const rulesDir = join(root, ".agents-doctor/rules");
+    const rulesDir = join(root, ".agents-doc/rules");
     const styleName = readdirSync(rulesDir).find((f) => f.endsWith("-style.md"))!;
     const stylePath = join(rulesDir, styleName);
     const before = readFileSync(stylePath, "utf8");
