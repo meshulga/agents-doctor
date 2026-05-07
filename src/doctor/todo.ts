@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BucketMap, ClassifiedIssue } from "./classify.js";
 import type { LintIssue, LintLocation } from "../lint/types.js";
@@ -10,7 +10,26 @@ type NowFn = () => Date;
 
 const defaultNow: NowFn = () => new Date();
 
-export function renderTodo(buckets: BucketMap, now: NowFn = defaultNow): string {
+const CHECKED_LINE_RE = /^- \[x\] (.+?)\s*$/;
+
+function extractCheckedSignatures(content: string): Set<string> {
+  const sigs = new Set<string>();
+  for (const line of content.split(/\r?\n/)) {
+    const m = CHECKED_LINE_RE.exec(line);
+    if (m && m[1]) sigs.add(m[1]);
+  }
+  return sigs;
+}
+
+export function renderTodo(
+  buckets: BucketMap,
+  now: NowFn = defaultNow,
+  previousContent?: string,
+): string {
+  const checked = previousContent
+    ? extractCheckedSignatures(previousContent)
+    : new Set<string>();
+
   const decisive = buckets.decisive;
   const generative = buckets.generative;
   const total = decisive.length + generative.length;
@@ -28,14 +47,14 @@ export function renderTodo(buckets: BucketMap, now: NowFn = defaultNow): string 
   if (decisive.length > 0) {
     lines.push(`## Decisive (${decisive.length})`);
     lines.push("");
-    for (const issue of decisive) lines.push(...renderEntry(issue));
+    for (const issue of decisive) lines.push(...renderEntry(issue, checked));
     lines.push("");
   }
 
   if (generative.length > 0) {
     lines.push(`## Generative (${generative.length})`);
     lines.push("");
-    for (const issue of generative) lines.push(...renderEntry(issue));
+    for (const issue of generative) lines.push(...renderEntry(issue, checked));
     lines.push("");
   }
 
@@ -46,27 +65,32 @@ export function writeTodo(buckets: BucketMap, projectRoot: string, now: NowFn = 
   const dir = join(projectRoot, ".agents-doc");
   mkdirSync(dir, { recursive: true });
   const path = join(dir, ".todo.md");
-  writeFileSync(path, renderTodo(buckets, now), "utf8");
+  const previous = existsSync(path) ? readFileSync(path, "utf8") : undefined;
+  writeFileSync(path, renderTodo(buckets, now, previous), "utf8");
   return path;
 }
 
-function renderEntry(issue: ClassifiedIssue): string[] {
+function renderEntry(issue: ClassifiedIssue, checked: Set<string>): string[] {
   if (issue.kind === "drift") {
-    return [
-      `- [ ] **drift** \`${issue.source.path}\` — ${issue.source.kind}`,
-    ];
+    const sig = `**drift** \`${issue.source.path}\` — ${issue.source.kind}`;
+    return [`- [${mark(sig, checked)}] ${sig}`];
   }
-  return renderLintEntry(issue.source);
+  return renderLintEntry(issue.source, checked);
 }
 
-function renderLintEntry(li: LintIssue): string[] {
+function renderLintEntry(li: LintIssue, checked: Set<string>): string[] {
   const out: string[] = [];
   const loc = formatLocation(li.location);
   const related = (li.related ?? []).map(formatLocation);
   const path = related.length > 0 ? `${loc} ↔ ${related.join(" ↔ ")}` : loc;
-  out.push(`- [ ] **${li.category}** ${path} — ${li.message}`);
+  const sig = `**${li.category}** ${path} — ${li.message}`;
+  out.push(`- [${mark(sig, checked)}] ${sig}`);
   if (li.suggestion) out.push(`  - suggestion: ${li.suggestion}`);
   return out;
+}
+
+function mark(sig: string, checked: Set<string>): string {
+  return checked.has(sig) ? "x" : " ";
 }
 
 function formatLocation(loc: LintLocation): string {

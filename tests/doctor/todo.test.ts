@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderTodo, writeTodo, TODO_HEADER } from "../../src/doctor/todo.js";
 import type { BucketMap } from "../../src/doctor/classify.js";
 import { makeTmpDir } from "../helpers/tmp.js";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const empty: BucketMap = { mechanical: [], decisive: [], generative: [] };
@@ -77,5 +77,65 @@ describe("writeTodo", () => {
     expect(existsSync(path)).toBe(true);
     const content = readFileSync(path, "utf8");
     expect(content).toMatch(TODO_HEADER);
+  });
+});
+
+describe("renderTodo preserves checked state from previous content", () => {
+  const now = () => new Date("2026-05-07T00:00:00Z");
+
+  it("re-marks an item as [x] when the previous run had it ticked", () => {
+    const previous = renderTodo(sample, now).replace(
+      "- [ ] **vague_phrasing**",
+      "- [x] **vague_phrasing**",
+    );
+    const text = renderTodo(sample, now, previous);
+    expect(text).toContain("- [x] **vague_phrasing** `rules/001.md:7`");
+    // contradiction was not ticked previously → still unchecked
+    expect(text).toContain("- [ ] **contradiction**");
+  });
+
+  it("drops checked entries that no longer match a current bucket item", () => {
+    const previous = [
+      "<!-- header -->",
+      "- [x] **vague_phrasing** `rules/old-removed.md:1` — gone",
+      "",
+    ].join("\n");
+    const text = renderTodo(sample, now, previous);
+    expect(text).not.toContain("rules/old-removed.md");
+  });
+
+  it("renders newly detected items as unchecked even when previous content exists", () => {
+    const previous = [
+      "<!-- header -->",
+      "- [x] **vague_phrasing** `rules/001.md:7` — vague phrase \"appropriate\"",
+      "",
+    ].join("\n");
+    const text = renderTodo(sample, now, previous);
+    expect(text).toContain("- [x] **vague_phrasing** `rules/001.md:7`");
+    expect(text).toMatch(/- \[ \] \*\*contradiction\*\*/);
+  });
+});
+
+describe("writeTodo round-trip", () => {
+  const now = () => new Date("2026-05-07T00:00:00Z");
+
+  it("preserves user-ticked checkboxes across re-runs on the same buckets", () => {
+    const root = makeTmpDir();
+    const path = writeTodo(sample, root, now);
+    const first = readFileSync(path, "utf8");
+    expect(first).toContain("- [ ] **vague_phrasing**");
+
+    // simulate /doc-fix or the user ticking a box
+    writeFileSync(
+      path,
+      first.replace("- [ ] **vague_phrasing**", "- [x] **vague_phrasing**"),
+      "utf8",
+    );
+
+    writeTodo(sample, root, now);
+    const after = readFileSync(path, "utf8");
+    expect(after).toContain("- [x] **vague_phrasing** `rules/001.md:7`");
+    // untouched item stays unchecked
+    expect(after).toContain("- [ ] **contradiction**");
   });
 });
