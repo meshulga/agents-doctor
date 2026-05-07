@@ -18,6 +18,9 @@ describe("loader rejects user-authored doc-fix command", () => {
     const root = makeTmpDir();
     writeFile(root, ".agents-doc/config.yaml", "agents: [claude]\n");
     writeFile(root, ".agents-doc/commands/review.md", "# review\n");
-    expect(() => loadSot(root)).not.toThrow();
+    const sot = loadSot(root);
+    expect(sot.commands).toHaveLength(1);
+    expect(sot.commands[0]?.name).toBe("review");
+    expect(sot.commands[0]?.body).toBe("# review\n");
   });
 });
