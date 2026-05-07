@@ -53,6 +53,20 @@ describe("runCheck", () => {
     expect(r.issues.some((i) => i.kind === "extra" && i.path === ".claude/commands/stray.md")).toBe(true);
   });
 
+  it("flags untracked file inside .agents/skills/ as extra", async () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doc/config.yaml", "agents: [codex]\n");
+    writeFile(root, ".agents-doc/rules/r.md", "---\n---\nbody\n");
+    await runSync({ projectRoot: root });
+    writeFile(root, ".agents/skills/stray-skill/SKILL.md", "stray\n");
+    const r = await runCheck({ projectRoot: root });
+    expect(
+      r.issues.some(
+        (i) => i.kind === "extra" && i.path === ".agents/skills/stray-skill/SKILL.md",
+      ),
+    ).toBe(true);
+  });
+
   it("treats CRLF on disk as equivalent to LF (no spurious drift)", async () => {
     const root = await setupSyncedProject();
     const path = join(root, "CLAUDE.md");

@@ -15,6 +15,11 @@ function sot(rules: Rule[]): Sot {
   return { config: { agents: ["claude", "codex"] }, rules, skills: [], commands: [] };
 }
 
+// `compileCodex` always emits the built-in doc-fix skill alongside the
+// rule output; these rule-focused tests filter it out so they stay
+// scoped to AGENTS.md compilation.
+const isAgentsMd = (k: string) => k.endsWith("AGENTS.md");
+
 describe("compileCodex rules", () => {
   it("emits AGENTS.md per unique path", () => {
     const out = compileCodex(
@@ -23,7 +28,7 @@ describe("compileCodex rules", () => {
         rule({ filename: "nested.md", body: "nested\n", frontmatter: { agents: ["*"], priority: "normal", path: "src/app" } }),
       ]),
     );
-    expect([...out.files.keys()].sort()).toEqual(["AGENTS.md", "src/app/AGENTS.md"]);
+    expect([...out.files.keys()].filter(isAgentsMd).sort()).toEqual(["AGENTS.md", "src/app/AGENTS.md"]);
     expect(out.files.get("AGENTS.md")!.toString("utf8")).toBe(HEADER + "root\n");
   });
 
@@ -33,7 +38,7 @@ describe("compileCodex rules", () => {
         rule({ filename: "c.md", body: "c\n", frontmatter: { agents: ["claude"], priority: "normal", path: "." } }),
       ]),
     );
-    expect([...out.files.keys()]).toEqual([]);
+    expect([...out.files.keys()].filter(isAgentsMd)).toEqual([]);
   });
 
   it("includes rules with explicit multi-agent list ['claude','codex']", () => {

@@ -63,9 +63,11 @@ For Claude Code users, `agents-doc sync` auto-installs a `/doc-fix` slash comman
 /doc-fix
 ```
 
-It reads `todo.md`, edits the SOT under `.agents-doc/rules/` (never the generated `CLAUDE.md` / `AGENTS.md`), ticks each item as it resolves them, and re-runs `sync` + `check` at the end. `doc-fix` is a reserved command name — authoring `.agents-doc/commands/doc-fix.md` is rejected by the loader.
+It reads `todo.md`, edits the SOT under `.agents-doc/rules/` (never the generated `CLAUDE.md` / `AGENTS.md`), ticks each item as it resolves them, and re-runs `sync` + `check` at the end.
 
-Codex CLI users get the same `todo.md` artifact and can work through it directly; there is no native slash-command equivalent yet.
+For Codex CLI users, the same workflow ships as a skill at `.agents/skills/doc-fix/SKILL.md`. Ask Codex to "use the doc-fix skill" (or just point it at `.agents-doc/todo.md`) and it follows the same script.
+
+`doc-fix` is a reserved name. Authoring `.agents-doc/commands/doc-fix.md` or `.agents-doc/skills/doc-fix/` in the SOT is rejected by the loader.
 
 ## CI
 
@@ -83,7 +85,9 @@ For stricter CI that also enforces rule quality (vague phrasing, over-broad glob
 | Agent | Rules | Skills | Commands |
 |-------|-------|--------|----------|
 | Claude Code | `CLAUDE.md` (root + nested) | `.claude/skills/` | `.claude/commands/` (incl. auto-installed `/doc-fix`) |
-| Codex CLI | `AGENTS.md` (root + nested) | — | — |
+| Codex CLI | `AGENTS.md` (root + nested) | `.agents/skills/` (incl. auto-installed `doc-fix` skill) | — |
+
+> Heads up: Codex's project skills directory is `.agents/skills/` — one character apart from this tool's source-of-truth directory `.agents-doc/`. Don't conflate them.
 
 ## License
 

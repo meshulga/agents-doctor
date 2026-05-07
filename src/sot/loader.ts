@@ -117,6 +117,13 @@ function loadSkills(sotDir: string): Skill[] {
   const skillNames = readdirSync(dir).filter((n) =>
     statSync(join(dir, n)).isDirectory(),
   );
+  for (const name of skillNames) {
+    if (name === "doc-fix") {
+      throw new Error(
+        "'doc-fix' is a reserved skill name installed by agents-doc; remove .agents-doc/skills/doc-fix/",
+      );
+    }
+  }
   return skillNames.sort().map((name) => loadSkill(join(dir, name), name));
 }
 

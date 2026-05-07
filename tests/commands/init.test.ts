@@ -145,6 +145,59 @@ describe("runInit", () => {
     expect(rule.data.path).toBe("src/app");
   });
 
+  it("seeds from .agents/skills only, enabling codex", async () => {
+    const root = makeTmpDir();
+    writeFile(
+      root,
+      ".agents/skills/refactor-py/SKILL.md",
+      "---\nname: refactor-py\ndescription: refactor\n---\n# body\n",
+    );
+    const result = await runInit({ projectRoot: root, selectAgent: stubSelect });
+    expect(result.rulesEmitted).toBe(0);
+    expect(existsSync(join(root, ".agents-doc/skills/refactor-py/SKILL.md"))).toBe(true);
+    const cfg = readFileSync(join(root, ".agents-doc/config.yaml"), "utf8");
+    expect(cfg).toContain("codex");
+    expect(cfg).not.toContain("claude");
+    // sync regenerates the skill at .agents/skills/<name>/SKILL.md.
+    expect(existsSync(join(root, ".agents/skills/refactor-py/SKILL.md"))).toBe(true);
+  });
+
+  it("merges skills from .claude/skills and .agents/skills under different names", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "intro\n");
+    writeFile(
+      root,
+      ".claude/skills/refactor-py/SKILL.md",
+      "---\nname: refactor-py\ndescription: rp\n---\n# body\n",
+    );
+    writeFile(
+      root,
+      ".agents/skills/audit-deps/SKILL.md",
+      "---\nname: audit-deps\ndescription: ad\n---\n# body\n",
+    );
+    await runInit({ projectRoot: root, selectAgent: stubSelect });
+    expect(existsSync(join(root, ".agents-doc/skills/refactor-py/SKILL.md"))).toBe(true);
+    expect(existsSync(join(root, ".agents-doc/skills/audit-deps/SKILL.md"))).toBe(true);
+  });
+
+  it("rejects init when the same skill name exists in both sources with different content", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "intro\n");
+    writeFile(
+      root,
+      ".claude/skills/foo/SKILL.md",
+      "---\nname: foo\ndescription: claude flavor\n---\n# claude\n",
+    );
+    writeFile(
+      root,
+      ".agents/skills/foo/SKILL.md",
+      "---\nname: foo\ndescription: codex flavor\n---\n# codex\n",
+    );
+    await expect(
+      runInit({ projectRoot: root, selectAgent: stubSelect }),
+    ).rejects.toThrow(/skill 'foo'.*differ/i);
+  });
+
   it("copies skills and commands verbatim into the SOT", async () => {
     const root = makeTmpDir();
     writeFile(root, "CLAUDE.md", "intro\n");
@@ -215,7 +268,13 @@ describe("runInit", () => {
     const result = await runInit({ projectRoot: root, selectAgent: stubSelect });
     // 3 chunks (intro, A, B), so 3 rules emitted.
     expect(result.rulesEmitted).toBe(3);
-    // sync should write CLAUDE.md, AGENTS.md, and the built-in Claude command.
-    expect(result.filesWritten.sort()).toEqual([".claude/commands/doc-fix.md", "AGENTS.md", "CLAUDE.md"]);
+    // sync writes CLAUDE.md, AGENTS.md, and the auto-installed doc-fix on
+    // each agent surface (Claude slash command, Codex skill).
+    expect(result.filesWritten.sort()).toEqual([
+      ".agents/skills/doc-fix/SKILL.md",
+      ".claude/commands/doc-fix.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+    ]);
   });
 });

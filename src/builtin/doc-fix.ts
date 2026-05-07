@@ -5,6 +5,13 @@ export const DOC_FIX_FRONTMATTER = {
   "argument-hint": "(no args)",
 } as const;
 
+// Skill flavor of the same wedge — installed under .agents/skills/doc-fix/
+// for Codex, where there is no native slash-command surface yet.
+export const DOC_FIX_SKILL_FRONTMATTER = {
+  name: "doc-fix",
+  description: "Resolve agents-doc lint and drift items by editing the SOT",
+} as const;
+
 export const DOC_FIX_BODY = `# /doc-fix
 
 You are working on a project that uses \`agents-doc\` to keep \`CLAUDE.md\`

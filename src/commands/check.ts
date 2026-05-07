@@ -50,7 +50,8 @@ export async function runCheck(opts: CheckOptions): Promise<CheckResult> {
     const isAgentFile = base === "CLAUDE.md" || base === "AGENTS.md";
     const isUnderClaudeDir =
       rel.startsWith(".claude/skills/") || rel.startsWith(".claude/commands/");
-    if ((isAgentFile || isUnderClaudeDir) && !expected.has(rel)) {
+    const isUnderCodexDir = rel.startsWith(".agents/skills/");
+    if ((isAgentFile || isUnderClaudeDir || isUnderCodexDir) && !expected.has(rel)) {
       issues.push({ kind: "extra", path: rel });
     }
   }

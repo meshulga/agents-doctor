@@ -1,6 +1,6 @@
 # agents-doc — Product Requirements Document
 
-**Status:** v0.2.0 shipped (AI-fix loop + anti-pattern lint)
+**Status:** v0.3.0 shipped (Codex skills + auto-installed `doc-fix` skill)
 **Owner:** TBD
 **Last updated:** 2026-05-07
 **License:** MIT
@@ -246,13 +246,17 @@ The features that make agents-doc distinct from `rulesync` and `Ruler` shipped i
 - **AI-fix loop (headline feature).** `agents-doc doctor` runs drift + rule-quality checks, classifies issues into mechanical, decisive, and generative buckets, and writes judgment items to `.agents-doc/todo.md`. A built-in `/doc-fix` slash command is auto-installed for Claude Code on every `sync`; the agent reads the todo file, edits the SOT, ticks resolved items, and re-runs `sync` + `check`. Tick state is preserved across re-runs of `doctor`. The slash command name is reserved — authoring `.agents-doc/commands/doc-fix.md` is rejected by the loader. Codex CLI users get the same `todo.md` artifact and can work through it directly; no native slash command yet.
 - **Anti-pattern lint.** Rule-level static analysis: vague phrasing, cross-rule contradictions, dead `@references`, missing required frontmatter (heading, scoping), instruction-count blowouts, over-broad globs.
 
-## 14. Roadmap beyond v0.2.0
+## 14. Shipped in v0.3.0
+
+- **Codex skill compilation.** `agents-doc sync` now emits each SOT skill to `.agents/skills/<name>/` for Codex, mirroring the existing `.claude/skills/<name>/` output for Claude. `check` tracks the directory; `init` imports existing `.agents/skills/` (and refuses init when the same skill name exists in both `.claude/skills/` and `.agents/skills/` with different content — user consolidates by hand).
+- **Codex parity for `/doc-fix`.** Auto-installed at `.agents/skills/doc-fix/SKILL.md` whenever Codex is enabled. Same body as the Claude `/doc-fix` slash command; reserved name in both surfaces.
+
+## 15. Roadmap
 
 - **v3 — TUI.** Three tabs: rules × agents matrix, hierarchical browser, health dashboard. Read-only browse over the SOT and check results.
-- **Codex parity for `/doc-fix`.** Either an opt-in instructions block appended to a generated `AGENTS.md` section, or a native equivalent if Codex CLI gains slash-command support.
 - **Later.** More agents (Cursor, Windsurf, Gemini CLI, Copilot, Cline, Aider). MCP server management. Override files. Profiles. Semantic drift detection. Best-practices registry.
 
-## 15. Open questions
+## 16. Open questions
 
 - How should the compiler order multiple rules at the same `path` beyond `priority` then filename? Should `priority` be the only ordering signal, or do we need an explicit `order:` field?
 - For nested `<path>/CLAUDE.md` files: do we also emit a marker in the root `CLAUDE.md` so the agent can discover them, or rely on Claude Code's native nested-file discovery?

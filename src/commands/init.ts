@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, mkdirSync, writeFileSync, cpSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdirSync, statSync, writeFileSync, cpSync } from "node:fs";
 import { dirname, join } from "node:path";
 import yaml from "js-yaml";
 import { splitByH2 } from "../headings.js";
@@ -47,8 +47,9 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const hasCodex = found.some((f) => f.agent === "codex");
   const hasSkills = existsSync(join(root, ".claude/skills"));
   const hasCommands = existsSync(join(root, ".claude/commands"));
+  const hasCodexSkills = existsSync(join(root, ".agents/skills"));
 
-  if (found.length === 0 && !hasSkills && !hasCommands) {
+  if (found.length === 0 && !hasSkills && !hasCommands && !hasCodexSkills) {
     throw new Error("no agent files found to seed from");
   }
 
@@ -85,8 +86,8 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
       serializeMarkdown(r.frontmatter, body),
     );
   }
-  if (hasSkills) {
-    cpSync(join(root, ".claude/skills"), join(root, ".agents-doc/skills"), { recursive: true });
+  if (hasSkills || hasCodexSkills) {
+    importSkills(root, hasSkills, hasCodexSkills);
   }
   if (hasCommands) {
     cpSync(join(root, ".claude/commands"), join(root, ".agents-doc/commands"), { recursive: true });
@@ -94,7 +95,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
 
   const enabledAgents: AgentChoice[] = [];
   if (hasClaude || hasSkills || hasCommands) enabledAgents.push("claude");
-  if (hasCodex) enabledAgents.push("codex");
+  if (hasCodex || hasCodexSkills) enabledAgents.push("codex");
   // enabledAgents is guaranteed non-empty by the earlier `no agent files` throw.
   writeFileSync(
     join(root, ".agents-doc/config.yaml"),
@@ -109,6 +110,66 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
 function relDirOf(rel: string): string {
   const dir = dirname(rel).replace(/\\/g, "/");
   return dir === "." ? "." : dir;
+}
+
+// Copy skills from .claude/skills/ and .agents/skills/ into the SOT.
+// On a name collision the bytes must match; otherwise abort with a clear
+// message and let the user consolidate by hand. This avoids silently
+// picking one agent's flavor over the other.
+function importSkills(root: string, hasClaude: boolean, hasCodex: boolean): void {
+  const sotSkills = join(root, ".agents-doc/skills");
+  if (hasClaude) {
+    cpSync(join(root, ".claude/skills"), sotSkills, { recursive: true });
+  }
+  if (!hasCodex) return;
+
+  const codexSkillsDir = join(root, ".agents/skills");
+  for (const name of readdirSync(codexSkillsDir)) {
+    const src = join(codexSkillsDir, name);
+    if (!statSync(src).isDirectory()) continue;
+    const dest = join(sotSkills, name);
+    if (existsSync(dest)) {
+      assertSkillTreesMatch(src, dest, name);
+      continue;
+    }
+    cpSync(src, dest, { recursive: true });
+  }
+}
+
+function assertSkillTreesMatch(srcDir: string, destDir: string, name: string): void {
+  const srcFiles = relativeFilesUnder(srcDir);
+  const destFiles = relativeFilesUnder(destDir);
+  const srcSet = new Set(srcFiles);
+  const destSet = new Set(destFiles);
+  for (const rel of new Set([...srcFiles, ...destFiles])) {
+    if (!srcSet.has(rel) || !destSet.has(rel)) {
+      throw new Error(
+        `skill '${name}' differs between .claude/skills/ and .agents/skills/ (missing ${rel}); consolidate before running init`,
+      );
+    }
+    const a = readFileSync(join(srcDir, rel));
+    const b = readFileSync(join(destDir, rel));
+    if (!a.equals(b)) {
+      throw new Error(
+        `skill '${name}' differs between .claude/skills/ and .agents/skills/ (file ${rel}); consolidate before running init`,
+      );
+    }
+  }
+}
+
+function relativeFilesUnder(dir: string): string[] {
+  const out: string[] = [];
+  const stack: string[] = [""];
+  while (stack.length > 0) {
+    const sub = stack.pop()!;
+    const here = sub === "" ? dir : join(dir, sub);
+    for (const entry of readdirSync(here, { withFileTypes: true })) {
+      const childRel = sub === "" ? entry.name : `${sub}/${entry.name}`;
+      if (entry.isDirectory()) stack.push(childRel);
+      else if (entry.isFile()) out.push(childRel);
+    }
+  }
+  return out.sort();
 }
 
 interface ResolvedRule {
