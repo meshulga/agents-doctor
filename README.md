@@ -19,7 +19,7 @@ agents-doc doctor  # run drift + rule-quality checks; hand off judgment items
 
 `init` is a one-time step for existing projects. After that the loop is: edit `.agents-doc/` → `sync` → commit.
 
-`check` exits non-zero on any drift or untracked extra, so it slots directly into CI. `doctor` adds rule-quality lint on top (vague phrasing, over-broad globs, cross-rule contradictions) and writes anything that needs human judgment to `.agents-doc/.todo.md`.
+`check` exits non-zero on any drift or untracked extra, so it slots directly into CI. `doctor` adds rule-quality lint on top (vague phrasing, over-broad globs, cross-rule contradictions) and writes anything that needs human judgment to `.agents-doc/todo.md`.
 
 ## Source of truth layout
 
@@ -55,7 +55,7 @@ Rules with the same `path` are merged into a single `CLAUDE.md` / `AGENTS.md` at
 
 ## Resolving judgment items
 
-Mechanical issues (drift, broken references) are fixed by `agents-doc sync`. Everything that requires judgment — vague phrasing, over-broad globs, contradictions between rules — is collected by `agents-doc doctor` into `.agents-doc/.todo.md` as a checklist.
+Mechanical issues (drift, broken references) are fixed by `agents-doc sync`. Everything that requires judgment — vague phrasing, over-broad globs, contradictions between rules — is collected by `agents-doc doctor` into `.agents-doc/todo.md` as a checklist.
 
 For Claude Code users, `agents-doc sync` auto-installs a `/doc-fix` slash command. Inside Claude Code, run:
 
@@ -63,9 +63,9 @@ For Claude Code users, `agents-doc sync` auto-installs a `/doc-fix` slash comman
 /doc-fix
 ```
 
-It reads `.todo.md`, edits the SOT under `.agents-doc/rules/` (never the generated `CLAUDE.md` / `AGENTS.md`), ticks each item as it resolves them, and re-runs `sync` + `check` at the end. `doc-fix` is a reserved command name — authoring `.agents-doc/commands/doc-fix.md` is rejected by the loader.
+It reads `todo.md`, edits the SOT under `.agents-doc/rules/` (never the generated `CLAUDE.md` / `AGENTS.md`), ticks each item as it resolves them, and re-runs `sync` + `check` at the end. `doc-fix` is a reserved command name — authoring `.agents-doc/commands/doc-fix.md` is rejected by the loader.
 
-Codex CLI users get the same `.todo.md` artifact and can work through it directly; there is no native slash-command equivalent yet.
+Codex CLI users get the same `todo.md` artifact and can work through it directly; there is no native slash-command equivalent yet.
 
 ## CI
 
@@ -75,6 +75,8 @@ Codex CLI users get the same `.todo.md` artifact and can work through it directl
 ```
 
 Any mismatch between `.agents-doc/` and the committed generated files fails the step.
+
+For stricter CI that also enforces rule quality (vague phrasing, over-broad globs, contradictions), swap in `npx agents-doc doctor`. It exits non-zero when judgment items are produced *or* when drift exists, so it catches everything `check` does and more.
 
 ## Supported agents
 

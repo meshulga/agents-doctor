@@ -70,10 +70,10 @@ describe("renderTodo", () => {
 });
 
 describe("writeTodo", () => {
-  it("writes to .agents-doc/.todo.md and returns the path", () => {
+  it("writes to .agents-doc/todo.md and returns the path", () => {
     const root = makeTmpDir();
     const path = writeTodo(sample, root, () => new Date("2026-05-07T00:00:00Z"));
-    expect(path).toBe(join(root, ".agents-doc", ".todo.md"));
+    expect(path).toBe(join(root, ".agents-doc", "todo.md"));
     expect(existsSync(path)).toBe(true);
     const content = readFileSync(path, "utf8");
     expect(content).toMatch(TODO_HEADER);

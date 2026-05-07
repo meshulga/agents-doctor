@@ -33,7 +33,7 @@ export function compileClaude(sot: Sot): CompiledOutput {
   }
 
   // Auto-install the built-in /doc-fix command. v2 wedge: the user invokes
-  // it from inside Claude Code to work through .agents-doc/.todo.md after
+  // it from inside Claude Code to work through .agents-doc/todo.md after
   // `agents-doc doctor` runs.
   const docFixFm = { ...DOC_FIX_FRONTMATTER, generated_by: "agents-doc" };
   const docFixMd = serializeMarkdown(docFixFm, DOC_FIX_BODY);

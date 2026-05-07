@@ -95,7 +95,7 @@ function printDoctor(result: DoctorResult): void {
   if (nonMech > 0) {
     console.log(
       ui.info(
-        `${nonMech} judgment item(s) written to .agents-doc/.todo.md — run /doc-fix in your agent`,
+        `${nonMech} judgment item(s) written to .agents-doc/todo.md — run /doc-fix in your agent`,
       ),
     );
   } else if (driftMechanical.length === 0 && lintMechanical.length === 0) {
@@ -153,7 +153,7 @@ function printHelp(): void {
       "  agents-doc init    Bootstrap .agents-doc/ from existing agent files",
       "  agents-doc sync    Regenerate all agent configs from .agents-doc/",
       "  agents-doc check   Verify on-disk agent files match .agents-doc/",
-      "  agents-doc doctor  Run lint + drift checks; write judgment items to .agents-doc/.todo.md",
+      "  agents-doc doctor  Run lint + drift checks; write judgment items to .agents-doc/todo.md",
     ].join("\n"),
   );
 }

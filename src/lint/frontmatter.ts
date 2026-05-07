@@ -19,7 +19,7 @@ export function checkFrontmatter(rules: Rule[]): LintIssue[] {
       (r.frontmatter.globs === undefined || r.frontmatter.globs.length === 0)
     ) {
       // Informational only: this is what `init` emits for content shared
-      // across all agents. Putting it in .todo.md would force every fresh
+      // across all agents. Putting it in todo.md would force every fresh
       // project to "fix" a non-problem on day one.
       out.push({
         category: "missing_frontmatter",

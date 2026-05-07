@@ -10,18 +10,18 @@ export const DOC_FIX_BODY = `# /doc-fix
 You are working on a project that uses \`agents-doc\` to keep \`CLAUDE.md\`
 and \`AGENTS.md\` in sync from a single source of truth at \`.agents-doc/\`.
 The tool has just run \`agents-doc doctor\` and produced a list of judgment
-items at \`.agents-doc/.todo.md\` that mechanical analysis cannot resolve.
+items at \`.agents-doc/todo.md\` that mechanical analysis cannot resolve.
 Your job is to work through that list.
 
 ## Workflow
 
-1. Read \`.agents-doc/.todo.md\` end-to-end. Each item names the rule file,
+1. Read \`.agents-doc/todo.md\` end-to-end. Each item names the rule file,
    line, and a one-line message.
 2. For each unchecked item, open the named rule under \`.agents-doc/rules/\`
    and edit the SOT — never the generated \`CLAUDE.md\` / \`AGENTS.md\`
    files. Direct edits to generated files are flagged as drift on the next
    \`check\`.
-3. After resolving an item, mark its checkbox \`[x]\` in \`.todo.md\` so
+3. After resolving an item, mark its checkbox \`[x]\` in \`todo.md\` so
    subsequent runs of \`/doc-fix\` skip it.
 4. When you have processed every item (or paused on one you cannot resolve
    without the user), run:
@@ -32,7 +32,7 @@ Your job is to work through that list.
    agents-doc doctor
    \`\`\`
 
-5. Report the diff between the original \`.todo.md\` count and what
+5. Report the diff between the original \`todo.md\` count and what
    remains, plus any open questions for the user.
 
 ## Rules of engagement

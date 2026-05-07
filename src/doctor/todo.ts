@@ -64,7 +64,7 @@ export function renderTodo(
 export function writeTodo(buckets: BucketMap, projectRoot: string, now: NowFn = defaultNow): string {
   const dir = join(projectRoot, ".agents-doc");
   mkdirSync(dir, { recursive: true });
-  const path = join(dir, ".todo.md");
+  const path = join(dir, "todo.md");
   const previous = existsSync(path) ? readFileSync(path, "utf8") : undefined;
   writeFileSync(path, renderTodo(buckets, now, previous), "utf8");
   return path;
