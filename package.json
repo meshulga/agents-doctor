@@ -1,6 +1,6 @@
 {
   "name": "agents-doc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sync and drift-check CLAUDE.md / AGENTS.md across Claude Code and Codex — one source of truth, one CLI.",
   "license": "MIT",
   "keywords": [
