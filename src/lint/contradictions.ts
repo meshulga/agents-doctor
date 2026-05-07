@@ -73,17 +73,24 @@ function findOpposites(directives: Directive[]): LintIssue[] {
       const key = pairKey(a.loc, b.loc);
       if (seen.has(key)) continue;
       seen.add(key);
+      const aWord = headWord(a.verb, a.negated);
+      const bWord = headWord(b.verb, b.negated);
       out.push({
         category: "contradiction",
         bucket: "generative",
         location: a.loc,
         related: [b.loc],
-        message: `"${a.verb} ${a.object}" vs "${b.negated ? "don't" : "do"} ${a.object}"`,
+        message: `"${aWord} ${a.object}" vs "${bWord} ${a.object}"`,
         suggestion: "consolidate into a single rule with one direction",
       });
     }
   }
   return out;
+}
+
+function headWord(verb: "do" | "always", negated: boolean): string {
+  if (verb === "always") return negated ? "never" : "always";
+  return negated ? "don't" : "do";
 }
 
 function pairKey(a: LintLocation, b: LintLocation): string {

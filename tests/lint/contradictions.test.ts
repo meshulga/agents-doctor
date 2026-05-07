@@ -20,6 +20,8 @@ describe("checkContradictions", () => {
     expect(issues[0]?.category).toBe("contradiction");
     expect(issues[0]?.bucket).toBe("generative");
     expect(issues[0]?.related?.[0]?.ruleFile).toBeDefined();
+    expect(issues[0]?.message).toContain("do mock the database");
+    expect(issues[0]?.message.toLowerCase()).toContain("don't");
   });
 
   it("flags always X / never X within the same path", () => {
@@ -28,6 +30,8 @@ describe("checkContradictions", () => {
       rule("b.md", "- never log errors\n"),
     ]);
     expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toContain("always log errors");
+    expect(issues[0]?.message).toContain("never log errors");
   });
 
   it("ignores contradictions across different paths", () => {
