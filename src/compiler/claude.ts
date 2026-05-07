@@ -1,4 +1,5 @@
 import { CompiledOutput, Sot } from "../types.js";
+import { DOC_FIX_BODY, DOC_FIX_FRONTMATTER } from "../builtin/doc-fix.js";
 import { serializeMarkdown } from "./frontmatter.js";
 import {
   GEN_HEADER,
@@ -30,6 +31,13 @@ export function compileClaude(sot: Sot): CompiledOutput {
     const md = serializeMarkdown(fm, body);
     files.set(`.claude/commands/${cmd.name}.md`, Buffer.from(md, "utf8"));
   }
+
+  // Auto-install the built-in /doc-fix command. v2 wedge: the user invokes
+  // it from inside Claude Code to work through .agents-doc/.todo.md after
+  // `agents-doc doctor` runs.
+  const docFixFm = { ...DOC_FIX_FRONTMATTER, generated_by: "agents-doc" };
+  const docFixMd = serializeMarkdown(docFixFm, DOC_FIX_BODY);
+  files.set(".claude/commands/doc-fix.md", Buffer.from(docFixMd, "utf8"));
 
   return { files };
 }
