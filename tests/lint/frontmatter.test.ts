@@ -36,6 +36,17 @@ describe("checkFrontmatter", () => {
     expect(issues.some((i) => i.message.includes("agents: ['*']"))).toBe(true);
   });
 
+  it("classifies ['*']+no-globs as mechanical, not decisive", () => {
+    // This is the canonical output of `init` for shared content; flagging it
+    // as decisive would force a fresh project to immediately resolve a
+    // judgment item on day one. It is informational, not a todo.
+    const issues = checkFrontmatter([
+      rule("004.md", "# T\nbody\n", { agents: ["*"] }),
+    ]);
+    const overScope = issues.find((i) => i.message.includes("agents: ['*']"));
+    expect(overScope?.bucket).toBe("mechanical");
+  });
+
   it("does not flag agent-scoped rules even without globs", () => {
     const issues = checkFrontmatter([
       rule("005.md", "# T\nbody\n", { agents: ["claude"] }),

@@ -18,9 +18,12 @@ export function checkFrontmatter(rules: Rule[]): LintIssue[] {
       r.frontmatter.agents[0] === "*" &&
       (r.frontmatter.globs === undefined || r.frontmatter.globs.length === 0)
     ) {
+      // Informational only: this is what `init` emits for content shared
+      // across all agents. Putting it in .todo.md would force every fresh
+      // project to "fix" a non-problem on day one.
       out.push({
         category: "missing_frontmatter",
-        bucket: "decisive",
+        bucket: "mechanical",
         location: { ruleFile: r.filename },
         message: "agents: ['*'] with no globs — applies to every file in scope",
         suggestion:
