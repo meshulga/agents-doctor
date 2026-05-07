@@ -33,6 +33,7 @@ describe("CLI argv dispatch", () => {
     expect(out).toContain("init");
     expect(out).toContain("sync");
     expect(out).toContain("check");
+    expect(out).toContain("doctor");
     log.mockRestore();
   });
 

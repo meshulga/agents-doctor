@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCheck, type CheckIssue } from "./commands/check.js";
+import { runDoctor, type DoctorResult } from "./commands/doctor.js";
+import { type ClassifiedIssue } from "./doctor/classify.js";
 import { runInit } from "./commands/init.js";
 import { runSync } from "./commands/sync.js";
 import { renderDiff, renderTree, ui } from "./ui.js";
@@ -37,6 +39,13 @@ export async function main(argv: string[]): Promise<void> {
       printWritten(`Wrote ${result.filesWritten.length} file(s)`, result.filesWritten);
       return;
     }
+    case "doctor": {
+      const result = await runDoctor({ projectRoot: resolveProjectRoot() });
+      printDoctor(result);
+      // Exit non-zero on drift only. Decisive/generative are todos, not failures.
+      if (result.driftIssues.length > 0) process.exit(1);
+      return;
+    }
     case undefined:
     case "-h":
     case "--help":
@@ -52,6 +61,46 @@ export async function main(argv: string[]): Promise<void> {
 function printWritten(header: string, files: string[]): void {
   console.log(ui.ok(`${header}:`));
   if (files.length > 0) console.log(renderTree(files));
+}
+
+function printDoctor(result: DoctorResult): void {
+  const { mechanical, decisive, generative } = result.buckets;
+  const driftMechanical = mechanical.filter(
+    (i): i is Extract<ClassifiedIssue, { kind: "drift" }> => i.kind === "drift",
+  );
+  const lintMechanical = mechanical.filter(
+    (i): i is Extract<ClassifiedIssue, { kind: "lint" }> => i.kind === "lint",
+  );
+
+  console.log(ui.bold("agents-doc doctor"));
+  if (driftMechanical.length > 0) {
+    console.log(
+      ui.fail(
+        `${driftMechanical.length} drift issue(s) — run \`agents-doc sync\` to fix`,
+      ),
+    );
+    for (const i of driftMechanical) {
+      console.log(`  ${ui.dim("·")} ${i.source.path}`);
+    }
+  }
+  if (lintMechanical.length > 0) {
+    console.log(ui.warn(`${lintMechanical.length} mechanical lint issue(s)`));
+    for (const i of lintMechanical) {
+      console.log(
+        `  ${ui.dim("·")} ${i.source.location.ruleFile} — ${i.source.message}`,
+      );
+    }
+  }
+  const nonMech = decisive.length + generative.length;
+  if (nonMech > 0) {
+    console.log(
+      ui.info(
+        `${nonMech} judgment item(s) written to .agents-doc/.todo.md — run /doc-fix in your agent`,
+      ),
+    );
+  } else if (driftMechanical.length === 0 && lintMechanical.length === 0) {
+    console.log(ui.ok("ok"));
+  }
 }
 
 function printIssues(issues: CheckIssue[]): void {
@@ -104,6 +153,7 @@ function printHelp(): void {
       "  agents-doc init    Bootstrap .agents-doc/ from existing agent files",
       "  agents-doc sync    Regenerate all agent configs from .agents-doc/",
       "  agents-doc check   Verify on-disk agent files match .agents-doc/",
+      "  agents-doc doctor  Run lint + drift checks; write judgment items to .agents-doc/.todo.md",
     ].join("\n"),
   );
 }
