@@ -149,3 +149,4 @@ dist/
 # examples/demo.template/. Not source of truth.
 examples/demo/
 
+docs
