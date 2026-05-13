@@ -1,10 +1,11 @@
-export type Agent = "claude" | "codex";
+export type Agent = "claude" | "codex" | "cursor";
 
 export interface RuleFrontmatter {
   agents: Agent[] | ["*"];
   globs?: string[];
   priority: "high" | "normal" | "low";
   path: string;
+  description?: string;
 }
 
 export interface Rule {
