@@ -133,4 +133,49 @@ describe("loadSot", () => {
     expect(b.frontmatter.path).toBe("src/app");
     expect(c.frontmatter.path).toBe(".");
   });
+
+  it("accepts 'cursor' in config.yaml agents", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doc/config.yaml", "agents: [cursor]\n");
+    writeFile(root, ".agents-doc/rules/r.md", "---\n---\nbody\n");
+    const sot = loadSot(root);
+    expect(sot.config.agents).toEqual(["cursor"]);
+  });
+
+  it("accepts 'cursor' in rule frontmatter agents", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doc/config.yaml", "agents: [claude, cursor]\n");
+    writeFile(
+      root,
+      ".agents-doc/rules/c.md",
+      "---\nagents: [cursor]\n---\ncursor body\n",
+    );
+    const sot = loadSot(root);
+    expect(sot.rules[0]!.frontmatter.agents).toEqual(["cursor"]);
+  });
+
+  it("parses optional description field on a rule", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doc/config.yaml", "agents: [cursor]\n");
+    writeFile(
+      root,
+      ".agents-doc/rules/d.md",
+      "---\ndescription: When editing components\n---\nbody\n",
+    );
+    const sot = loadSot(root);
+    expect(sot.rules[0]!.frontmatter.description).toBe(
+      "When editing components",
+    );
+  });
+
+  it("rejects non-string description", () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doc/config.yaml", "agents: [cursor]\n");
+    writeFile(
+      root,
+      ".agents-doc/rules/d.md",
+      "---\ndescription: [a, b]\n---\nbody\n",
+    );
+    expect(() => loadSot(root)).toThrow(/description must be a string/);
+  });
 });

@@ -50,7 +50,7 @@ function loadConfig(sotDir: string): SotConfig {
     throw new Error(`config.yaml must define a non-empty agents list`);
   }
   for (const a of parsed.agents) {
-    if (a !== "claude" && a !== "codex") {
+    if (a !== "claude" && a !== "codex" && a !== "cursor") {
       throw new Error(`unknown agent in config.yaml: ${a}`);
     }
   }
@@ -82,7 +82,7 @@ function mergeRuleFrontmatter(
       out.agents = ["*"];
     } else {
       for (const a of raw.agents) {
-        if (a !== "claude" && a !== "codex") {
+        if (a !== "claude" && a !== "codex" && a !== "cursor") {
           throw new Error(`${filename}: unknown agent '${a}'`);
         }
       }
@@ -102,6 +102,12 @@ function mergeRuleFrontmatter(
   if (raw.globs !== undefined) {
     if (!Array.isArray(raw.globs)) throw new Error(`${filename}: globs must be an array`);
     out.globs = raw.globs as string[];
+  }
+  if (raw.description !== undefined) {
+    if (typeof raw.description !== "string") {
+      throw new Error(`${filename}: description must be a string`);
+    }
+    out.description = raw.description;
   }
   return out;
 }
