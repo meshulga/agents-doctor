@@ -97,19 +97,23 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     ordinal = resolved.nextOrdinal;
   }
 
-  // 4b. import .cursor/rules/*.mdc as standalone cursor-scoped rules.
-  // Filenames in .agents-doc/rules/ must be unique. We disambiguate via the
-  // usedFilenames set already populated by resolveDirectory above.
+  // 4b. import .cursor/rules/*.mdc — merge by body match when possible.
   for (const mdc of cursorMdcs) {
     const raw = readFileSync(mdc.absPath, "utf8");
     const parsed = matter(raw);
+    const bodyNorm = normalizeBody(parsed.content);
+
+    const match = rules.find((r) => normalizeBody(r.body) === bodyNorm);
+    if (match) {
+      addCursorToAgents(match.frontmatter);
+      continue;
+    }
+
     const fm: Record<string, unknown> = { agents: ["cursor"] };
     if (Array.isArray(parsed.data.globs)) fm.globs = parsed.data.globs;
     if (typeof parsed.data.description === "string") {
       fm.description = parsed.data.description;
     }
-    // alwaysApply: true on input → no globs + path: '.' on SOT (default).
-    // We do not emit `path:` for root rules, mirroring the existing convention.
     const baseStem = mdc.filename.replace(/\.mdc$/, "");
     const filename = uniqueImportFilename(baseStem, usedFilenames);
     rules.push({ filename, frontmatter: fm, body: parsed.content });
@@ -335,4 +339,29 @@ function uniqueImportFilename(stem: string, used: Set<string>): string {
   }
   used.add(candidate);
   return candidate;
+}
+
+function normalizeBody(body: string): string {
+  // splitByH2 chunks include the `## Heading` line as the first line of the
+  // chunk body (see src/headings.ts). Cursor .mdc bodies don't — each .mdc is
+  // its own file with no in-body H2. Strip a leading H2 heading line on both
+  // sides so the comparison ignores it. Line endings and surrounding
+  // whitespace are normalized too.
+  return body
+    .replace(/\r\n/g, "\n")
+    .replace(/^##\s+[^\n]*\n+/, "")
+    .trim();
+}
+
+function addCursorToAgents(fm: Record<string, unknown>): void {
+  const a = fm.agents as unknown;
+  if (Array.isArray(a) && a.length === 1 && a[0] === "*") return;
+  const current = Array.isArray(a) ? (a as string[]).slice() : [];
+  if (!current.includes("cursor")) current.push("cursor");
+  const set = new Set(current);
+  if (set.has("claude") && set.has("codex") && set.has("cursor")) {
+    fm.agents = ["*"];
+  } else {
+    fm.agents = current;
+  }
 }

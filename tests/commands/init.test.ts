@@ -314,4 +314,67 @@ describe("runInit", () => {
       "CLAUDE.md",
     ]);
   });
+
+  it("merges a cursor .mdc into an existing rule when the body matches", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "## Style\n\nuse two spaces\n");
+    writeFile(root, "AGENTS.md", "## Style\n\nuse two spaces\n");
+    writeFile(
+      root,
+      ".cursor/rules/style.mdc",
+      "---\nalwaysApply: true\n---\nuse two spaces\n",
+    );
+
+    await runInit({ projectRoot: root, selectAgent: stubSelect });
+
+    const sot = loadSot(root);
+    // splitByH2 keeps `## Style` at the head of the claude/codex body, so
+    // the filter can't insist on an exact match. We just want to find the
+    // rule whose content is about "use two spaces".
+    const styleRules = sot.rules.filter((r) =>
+      r.body.includes("use two spaces"),
+    );
+    expect(styleRules).toHaveLength(1);
+    expect(styleRules[0]!.frontmatter.agents).toEqual(["*"]);
+  });
+
+  it("merges across leading-whitespace differences between sources", async () => {
+    // splitByH2 chunk bodies vs gray-matter content commonly differ by a
+    // leading newline. The merge must look past that.
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "## Style\n\nuse two spaces\n");
+    writeFile(root, "AGENTS.md", "## Style\n\nuse two spaces\n");
+    writeFile(
+      root,
+      ".cursor/rules/style.mdc",
+      "---\nalwaysApply: true\n---\n\n\nuse two spaces\n",
+    );
+
+    await runInit({ projectRoot: root, selectAgent: stubSelect });
+
+    const sot = loadSot(root);
+    const styleRules = sot.rules.filter((r) =>
+      r.body.includes("use two spaces"),
+    );
+    expect(styleRules).toHaveLength(1);
+    expect(styleRules[0]!.frontmatter.agents).toEqual(["*"]);
+  });
+
+  it("keeps a cursor .mdc separate when its body differs from the claude/codex chunk", async () => {
+    const root = makeTmpDir();
+    writeFile(root, "CLAUDE.md", "## Style\n\nuse two spaces\n");
+    writeFile(
+      root,
+      ".cursor/rules/style.mdc",
+      "---\nalwaysApply: true\n---\nuse tabs\n",
+    );
+
+    await runInit({ projectRoot: root, selectAgent: stubSelect });
+
+    const sot = loadSot(root);
+    const claude = sot.rules.find((r) => r.body.includes("use two spaces"))!;
+    const cursor = sot.rules.find((r) => r.body.includes("use tabs"))!;
+    expect(claude.frontmatter.agents).toEqual(["claude"]);
+    expect(cursor.frontmatter.agents).toEqual(["cursor"]);
+  });
 });
