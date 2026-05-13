@@ -3,6 +3,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { runInit } from "../../src/commands/init.js";
+import { compile } from "../../src/compiler/index.js";
+import { loadSot } from "../../src/sot/loader.js";
 import { makeTmpDir, writeFile } from "../helpers/tmp.js";
 import type { SelectAgentFn } from "../../src/prompt.js";
 
@@ -259,6 +261,41 @@ describe("runInit", () => {
     expect(result.rulesEmitted).toBe(1);
     const ruleFiles = readdirSync(join(root, ".agents-doc/rules"));
     expect(ruleFiles).toHaveLength(1);
+  });
+
+  it("imports root-level .cursor/rules/*.mdc as cursor-scoped SOT rules", async () => {
+    const root = makeTmpDir();
+    writeFile(
+      root,
+      ".cursor/rules/components.mdc",
+      "---\nglobs:\n  - src/components/**\nalwaysApply: false\ndescription: Component conventions\n---\ncomponent body\n",
+    );
+    writeFile(root, ".cursor/rules/always.mdc", "---\nalwaysApply: true\n---\nalways body\n");
+
+    await runInit({ projectRoot: root, selectAgent: async () => "claude" });
+
+    // SOT exists and config includes cursor
+    const sot = loadSot(root);
+    expect(sot.config.agents).toContain("cursor");
+
+    const rules = sot.rules;
+    const components = rules.find((r) => r.body.trim() === "component body");
+    expect(components).toBeDefined();
+    expect(components!.frontmatter.agents).toEqual(["cursor"]);
+    expect(components!.frontmatter.globs).toEqual(["src/components/**"]);
+    expect(components!.frontmatter.description).toBe("Component conventions");
+    expect(components!.frontmatter.path).toBe(".");
+
+    const always = rules.find((r) => r.body.trim() === "always body");
+    expect(always).toBeDefined();
+    expect(always!.frontmatter.agents).toEqual(["cursor"]);
+    expect(always!.frontmatter.globs).toBeUndefined();
+    expect(always!.frontmatter.path).toBe(".");
+
+    // sync ran after init; .cursor/rules/ should be regenerated and match
+    const compiled = compile(sot);
+    expect(compiled.files.has(".cursor/rules/components.mdc")).toBe(true);
+    expect(compiled.files.has(".cursor/rules/always.mdc")).toBe(true);
   });
 
   it("returns a summary of rules emitted and files synced", async () => {

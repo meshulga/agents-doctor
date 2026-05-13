@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, mkdirSync, statSync, writeFileSync, cpSync } from "node:fs";
 import { dirname, join } from "node:path";
 import yaml from "js-yaml";
+import matter from "gray-matter";
 import { splitByH2 } from "../headings.js";
 import { walkProject } from "../walk.js";
 import { runSync } from "./sync.js";
@@ -49,7 +50,26 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const hasCommands = existsSync(join(root, ".claude/commands"));
   const hasCodexSkills = existsSync(join(root, ".agents/skills"));
 
-  if (found.length === 0 && !hasSkills && !hasCommands && !hasCodexSkills) {
+  // Root-level .cursor/rules/*.mdc discovery (v1 — nested .cursor/rules/ not imported).
+  const cursorRulesDir = join(root, ".cursor/rules");
+  const cursorMdcs: { filename: string; absPath: string }[] = [];
+  if (existsSync(cursorRulesDir)) {
+    for (const name of readdirSync(cursorRulesDir).sort()) {
+      if (!name.endsWith(".mdc")) continue;
+      const abs = join(cursorRulesDir, name);
+      if (!statSync(abs).isFile()) continue;
+      cursorMdcs.push({ filename: name, absPath: abs });
+    }
+  }
+  const hasCursor = cursorMdcs.length > 0;
+
+  if (
+    found.length === 0 &&
+    !hasSkills &&
+    !hasCommands &&
+    !hasCodexSkills &&
+    !hasCursor
+  ) {
     throw new Error("no agent files found to seed from");
   }
 
@@ -77,6 +97,24 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
     ordinal = resolved.nextOrdinal;
   }
 
+  // 4b. import .cursor/rules/*.mdc as standalone cursor-scoped rules.
+  // Filenames in .agents-doc/rules/ must be unique. We disambiguate via the
+  // usedFilenames set already populated by resolveDirectory above.
+  for (const mdc of cursorMdcs) {
+    const raw = readFileSync(mdc.absPath, "utf8");
+    const parsed = matter(raw);
+    const fm: Record<string, unknown> = { agents: ["cursor"] };
+    if (Array.isArray(parsed.data.globs)) fm.globs = parsed.data.globs;
+    if (typeof parsed.data.description === "string") {
+      fm.description = parsed.data.description;
+    }
+    // alwaysApply: true on input → no globs + path: '.' on SOT (default).
+    // We do not emit `path:` for root rules, mirroring the existing convention.
+    const baseStem = mdc.filename.replace(/\.mdc$/, "");
+    const filename = uniqueImportFilename(baseStem, usedFilenames);
+    rules.push({ filename, frontmatter: fm, body: parsed.content });
+  }
+
   // 5. write SOT
   mkdirSync(join(root, ".agents-doc/rules"), { recursive: true });
   for (const r of rules) {
@@ -96,6 +134,7 @@ export async function runInit(opts: InitOptions): Promise<InitResult> {
   const enabledAgents: AgentChoice[] = [];
   if (hasClaude || hasSkills || hasCommands) enabledAgents.push("claude");
   if (hasCodex || hasCodexSkills) enabledAgents.push("codex");
+  if (hasCursor) enabledAgents.push("cursor");
   // enabledAgents is guaranteed non-empty by the earlier `no agent files` throw.
   writeFileSync(
     join(root, ".agents-doc/config.yaml"),
@@ -281,6 +320,17 @@ function uniqueFilename(
   let n = 2;
   while (used.has(candidate)) {
     candidate = `${base}-${n}.md`;
+    n++;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
+function uniqueImportFilename(stem: string, used: Set<string>): string {
+  let candidate = `${stem}.md`;
+  let n = 2;
+  while (used.has(candidate)) {
+    candidate = `${stem}-${n}.md`;
     n++;
   }
   used.add(candidate);

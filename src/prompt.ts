@@ -1,6 +1,6 @@
 import { select } from "@inquirer/prompts";
 
-export type AgentChoice = "claude" | "codex";
+export type AgentChoice = "claude" | "codex" | "cursor";
 
 export type SelectAgentFn = (message: string) => Promise<AgentChoice>;
 
