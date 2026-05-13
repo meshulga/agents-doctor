@@ -4,6 +4,41 @@ All notable changes to `agents-doc` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-05-13
+
+### Added
+- Cursor as a third supported agent. `agents-doc sync` emits each SOT
+  rule to `.cursor/rules/<name>.mdc` when `cursor` is listed in
+  `config.yaml`. `agents-doc check` tracks `.cursor/rules/` for stray
+  files; `agents-doc init` imports root-level `.cursor/rules/*.mdc`
+  during brownfield onboarding.
+- Optional `description:` field on rule frontmatter. Used by the Cursor
+  compiler to populate the `.mdc` `description` field. Ignored by the
+  Claude and Codex compilers (frontmatter is stripped from their
+  output).
+- Init merges a Cursor `.mdc` into an existing rule when its body
+  matches a `CLAUDE.md` / `AGENTS.md` chunk after normalizing line
+  endings, stripping leading/trailing whitespace, and ignoring a
+  leading `## Heading` line on either side (Claude/Codex chunks
+  carry their H2 in the body; `.mdc` files don't). The merged
+  rule's `agents:` is collapsed to `["*"]` when all three agents
+  match.
+
+### Notes
+- Cursor has no native skills or slash-command surface; SOT skills and
+  commands are silently skipped when emitting for Cursor.
+- Only the modern `.cursor/rules/*.mdc` format is supported. The
+  legacy single-file `.cursorrules` is not read or written.
+- Nested `.cursor/rules/` directories (e.g.,
+  `subproject/.cursor/rules/`) are not imported by `init` and not
+  emitted by `sync`. Per-rule scoping is expressed via Cursor's
+  native `globs:`.
+- Cursor's "Agent Requested" rule type (description-only, no globs,
+  no `alwaysApply`) is not expressible in the SOT in this release;
+  the mapping always emits `alwaysApply: true` or `globs:` plus
+  `alwaysApply: false`. A future SOT field can opt rules into the
+  Agent Requested shape.
+
 ## [0.3.0] — 2026-05-07
 
 ### Added

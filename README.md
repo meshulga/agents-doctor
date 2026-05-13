@@ -41,9 +41,10 @@ Each file in `rules/` carries YAML frontmatter:
 
 ```markdown
 ---
-agents: ["*"]        # "*" = all agents, or ["claude"], ["codex"]
+agents: ["*"]        # "*" = all agents, or ["claude"], ["codex"], ["cursor"]
 path: src/components # project-relative dir; omit for root
 priority: high       # high | normal | low — controls ordering in output
+description: ...     # optional one-liner; used by Cursor's "Agent Requested" rule type
 ---
 
 ## Component conventions
@@ -52,6 +53,8 @@ Always co-locate the test file with the component.
 ```
 
 Rules with the same `path` are merged into a single `CLAUDE.md` / `AGENTS.md` at that location. Frontmatter is stripped from the compiled output. Generated files are marked with a header so direct edits are detectable.
+
+For Cursor, each SOT rule compiles to a single `.cursor/rules/<name>.mdc` at project root. Path scoping is translated into Cursor's native `globs:` (a rule with `path: src/foo` becomes `globs: ["src/foo/**"]`); a root-level rule with no globs becomes `alwaysApply: true`. Cursor has no native skills or slash-command surface, so SOT skills and commands are not emitted for it. Cursor's "Agent Requested" rule type (description-only, no globs, no `alwaysApply`) is not expressible in the SOT in this release.
 
 ## Resolving judgment items
 
@@ -86,6 +89,7 @@ For stricter CI that also enforces rule quality (vague phrasing, over-broad glob
 |-------|-------|--------|----------|
 | Claude Code | `CLAUDE.md` (root + nested) | `.claude/skills/` | `.claude/commands/` (incl. auto-installed `/doc-fix`) |
 | Codex CLI | `AGENTS.md` (root + nested) | `.agents/skills/` (incl. auto-installed `doc-fix` skill) | — |
+| Cursor | `.cursor/rules/*.mdc` (root only) | — | — |
 
 > Heads up: Codex's project skills directory is `.agents/skills/` — one character apart from this tool's source-of-truth directory `.agents-doc/`. Don't conflate them.
 
