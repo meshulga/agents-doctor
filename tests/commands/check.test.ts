@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { runCheck } from "../../src/commands/check.js";
 import { runSync } from "../../src/commands/sync.js";
+import { compile } from "../../src/compiler/index.js";
+import { loadSot } from "../../src/sot/loader.js";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { makeTmpDir, writeFile } from "../helpers/tmp.js";
@@ -116,5 +118,28 @@ describe("runCheck", () => {
     const r = await runCheck({ projectRoot: root });
     expect(r.ok).toBe(true);
     expect(r.issues).toEqual([]);
+  });
+
+  it("flags stray files under .cursor/rules/ as extras", async () => {
+    const root = makeTmpDir();
+    writeFile(root, ".agents-doc/config.yaml", "agents: [cursor]\n");
+    writeFile(
+      root,
+      ".agents-doc/rules/known.md",
+      "---\nagents: [cursor]\n---\nknown body\n",
+    );
+    // Pre-create the expected on-disk Cursor output so the known rule does not
+    // show up as missing — the test scopes to extras.
+    const known = compile(loadSot(root)).files.get(".cursor/rules/known.mdc")!;
+    writeFile(root, ".cursor/rules/known.mdc", known);
+    // The stray:
+    writeFile(root, ".cursor/rules/stray.mdc", "---\n---\nstray\n");
+
+    const result = await runCheck({ projectRoot: root });
+    expect(result.ok).toBe(false);
+    const extras = result.issues
+      .filter((i) => i.kind === "extra")
+      .map((i) => i.path);
+    expect(extras).toContain(".cursor/rules/stray.mdc");
   });
 });

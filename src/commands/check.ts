@@ -51,7 +51,11 @@ export async function runCheck(opts: CheckOptions): Promise<CheckResult> {
     const isUnderClaudeDir =
       rel.startsWith(".claude/skills/") || rel.startsWith(".claude/commands/");
     const isUnderCodexDir = rel.startsWith(".agents/skills/");
-    if ((isAgentFile || isUnderClaudeDir || isUnderCodexDir) && !expected.has(rel)) {
+    const isUnderCursorDir = rel.startsWith(".cursor/rules/");
+    if (
+      (isAgentFile || isUnderClaudeDir || isUnderCodexDir || isUnderCursorDir) &&
+      !expected.has(rel)
+    ) {
       issues.push({ kind: "extra", path: rel });
     }
   }
